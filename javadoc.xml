@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="javadoc">
+    <target name="javadoc">
+        <javadoc 
+        access="public" 
+        classpath="/datos/joseangel.pineiro/software/android-sdk-linux_x86/platforms/android-7/android.jar:libs/log4j-1.2.16.jar:libs/android-logging-log4j-1.0.2.jar:/datos/joseangel.pineiro/software/android-sdk-linux_x86/tools/support/annotations.jar:libs/android-support-v4.jar:/datos/joseangel.pineiro/software/simpleXML/simple-xml-2.6.1/jar/simple-xml-2.6.1.jar" 
+        packagenames="es.usc.citius.servando.android.logging,es.usc.citius.servando.android.services,es.usc.citius.servando.android.communications.soap,es.usc.citius.servando.android.ui,es.usc.citius.servando.android.communications.soap.converters,es.usc.citius.servando.android.xml.converters,es.usc.citius.servando.android.models.medicaments,es.usc.citius.servando.android.communications.model,es.usc.citius.servando.android.models.util,es.usc.citius.servando.android,es.usc.citius.servando.android.services.model,es.usc.citius.servando.android.models.patients,es.usc.citius.servando.android.communications.exceptions,es.usc.citius.servando.android.helper,es.usc.citius.servando.android.models.MIT,es.usc.citius.servando.android.util,es.usc.citius.servando.android.communications.callbacks,es.usc.citius.servando.android.models.protocol.medicalActionResults.monitorizacion,es.usc.citius.servando.android.xml.converters.numberListConverters,es.usc.citius.servando.android.settings,es.usc.citius.servando.android.communications,es.usc.citius.servando.android.models,es.usc.citius.servando.android.models.protocol.medicalActionResults.valoracionHistoriaClinica,es.usc.citius.servando.android.models.protocol.medicalActionResults,es.usc.citius.servando.android.models.protocol.medicalActionResults.tests,es.usc.citius.servando.android.models.protocol,es.usc.citius.servando.android.models.services" sourcefiles="gen/es/usc/citius/servando/R.java,gen/es/usc/citius/servando/BuildConfig.java" 
+        sourcepath="gen:src"
+        overview="/home/joseangel.pineiro/work/exports/reference/overview.html"
+        bootclasspath="/usr/lib/jvm/java-6-sun-1.6.0.26/jre/lib">
+            <doclet name="com.google.doclava.Doclava" 
+            path="/datos/joseangel.pineiro/software/doclava-1.0.5/doclava-1.0.5.jar">
+            </doclet>
+        </javadoc>
+    </target>
+</project>
