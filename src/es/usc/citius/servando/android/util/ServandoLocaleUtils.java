@@ -15,9 +15,12 @@ public class ServandoLocaleUtils {
 		if ("en".equalsIgnoreCase(locale))
 		{
 			return "en";
-		} else if ("es".equalsIgnoreCase("es"))
+		} else if ("es".equalsIgnoreCase(locale))
 		{
 			return "es";
+		} else if ("pt".equalsIgnoreCase(locale))
+		{
+			return "pt";
 		} else
 		{
 			return getDeviceLocale();

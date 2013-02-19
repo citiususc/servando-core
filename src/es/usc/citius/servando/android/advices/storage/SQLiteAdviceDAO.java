@@ -4,20 +4,19 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import es.usc.citius.servando.android.advices.Advice;
-import es.usc.citius.servando.android.logging.ILog;
-import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
-
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
+import es.usc.citius.servando.android.advices.Advice;
+import es.usc.citius.servando.android.logging.ILog;
+import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
 
 public class SQLiteAdviceDAO {
 
 	ILog logger = ServandoLoggerFactory.getLogger(SQLiteAdviceDAO.class);
-	
+
 	private static final String DATA_BASE_NAME = "ADVICES_DB";
 
 	private static final int DATA_BASE_VERSION = 1;
@@ -28,25 +27,43 @@ public class SQLiteAdviceDAO {
 
 	private SQLiteDatabase database;
 
-	private SQLiteAdviceDAO(Context context)
+	private boolean initialized = false;
+
+	private SQLiteAdviceDAO()
 	{
-		helper = new SQLiteAdviceHelper(context, DATA_BASE_NAME, null, DATA_BASE_VERSION);
-		database = helper.getWritableDatabase();
+
 	}
 
-	public static SQLiteAdviceDAO getInstance(Context context)
+	public static SQLiteAdviceDAO getInstance()
 	{
 
 		if (instance == null)
 		{
-			instance = new SQLiteAdviceDAO(context);
+			instance = new SQLiteAdviceDAO();
 		}
 		return instance;
 	}
 
+	/**
+	 * This method initialize the instance.
+	 * 
+	 * @param context The application context
+	 */
+	public void initialize(Context context)
+	{
+		if (!initialized)
+		{
+			logger.debug(this.getClass().getSimpleName() + " initilized.");
+			helper = new SQLiteAdviceHelper(context, DATA_BASE_NAME, null, DATA_BASE_VERSION);
+			database = helper.getWritableDatabase();
+			initialized = true;
+		}
+
+	}
+
 	private void openToRead()
 	{
-		if (helper != null)
+		if (helper != null && initialized)
 		{
 			database = this.helper.getReadableDatabase();
 		}
@@ -54,7 +71,7 @@ public class SQLiteAdviceDAO {
 
 	private void openToWrite()
 	{
-		if (helper != null)
+		if (helper != null && initialized)
 		{
 			database = this.helper.getWritableDatabase();
 		}
@@ -73,17 +90,22 @@ public class SQLiteAdviceDAO {
 	 */
 	public void restartDataBase()
 	{
-		if (helper != null)
+		if (helper != null && initialized)
 		{
 			helper.onUpgrade(helper.getWritableDatabase(), 1, 1);
 		}
 
 	}
 
+	/**
+	 * This method get all messagges in database
+	 * 
+	 * @return
+	 */
 	public List<Advice> readAll()
 	{
 		List<Advice> list = new ArrayList<Advice>();
-		if (database == null)
+		if (database == null || !initialized)
 		{
 			return list;
 		}
@@ -111,6 +133,7 @@ public class SQLiteAdviceDAO {
 				cursor.moveToNext();
 			}
 		}
+		cursor.close();
 		this.close();
 		return list;
 	}
@@ -120,6 +143,10 @@ public class SQLiteAdviceDAO {
 	 */
 	public void clearMessagges()
 	{
+		if (!initialized)
+		{
+			return;
+		}
 		this.openToWrite();
 
 		if (this.database != null)
@@ -140,6 +167,10 @@ public class SQLiteAdviceDAO {
 	 */
 	public long insert(Advice advice)
 	{
+		if (!initialized)
+		{
+			return -1;
+		}
 		this.openToWrite();
 		ContentValues cv = new ContentValues();
 		cv.put(SQLiteAdviceHelper.SENDER_COLUMN, advice.getSender());
@@ -175,7 +206,7 @@ public class SQLiteAdviceDAO {
 	 */
 	public boolean deleteAdvice(int id)
 	{
-		if (database == null)
+		if (database == null || !initialized)
 		{
 			return false;
 		}
@@ -203,7 +234,7 @@ public class SQLiteAdviceDAO {
 	 */
 	public boolean markAsSeen(int id)
 	{
-		if (database == null)
+		if (database == null || !initialized)
 		{
 			return false;
 		}

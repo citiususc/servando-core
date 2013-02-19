@@ -15,6 +15,7 @@ import org.apache.log4j.Level;
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
+import es.usc.citius.servando.android.advices.storage.SQLiteAdviceDAO;
 import es.usc.citius.servando.android.agenda.ProtocolEngine;
 import es.usc.citius.servando.android.agenda.ProtocolEngineServiceBinder;
 import es.usc.citius.servando.android.agenda.ProtocolEngineServiceBinder.ProtocolEngineServiceBinderListener;
@@ -261,6 +262,8 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 
 			SystemStatusMonitor.getInstance().updateStatus(ctx);
 			log.info(SystemStatusMonitor.getInstance().toString());
+
+			SQLiteAdviceDAO.getInstance().initialize(ctx);
 
 			started = true;
 		}

@@ -4,8 +4,12 @@ import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteDatabase.CursorFactory;
 import android.database.sqlite.SQLiteOpenHelper;
+import es.usc.citius.servando.android.logging.ILog;
+import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
 
-public class SQLiteAdviceHelper extends SQLiteOpenHelper{
+public class SQLiteAdviceHelper extends SQLiteOpenHelper {
+
+	ILog logger = ServandoLoggerFactory.getLogger(SQLiteAdviceHelper.class);
 
 	public static final String ADVICES_TABLE_NAME = "ADVICE";
 	public static final String KEY_COLUMN = "id";
@@ -35,15 +39,14 @@ public class SQLiteAdviceHelper extends SQLiteOpenHelper{
 	@Override
 	public void onCreate(SQLiteDatabase db)
 	{
-
-		System.out.println(CREATE_DATA_BASE_SCRIPT);
+		logger.debug(CREATE_DATA_BASE_SCRIPT);
 		db.execSQL(CREATE_DATA_BASE_SCRIPT);
 	}
 
 	@Override
 	public void onUpgrade(SQLiteDatabase db, int arg1, int arg2)
 	{
-		System.out.println(DELETE_DATABASE_SCRIPT);
+		logger.debug(DELETE_DATABASE_SCRIPT);
 		db.execSQL(DELETE_DATABASE_SCRIPT);
 		this.onCreate(db);
 	}
