@@ -16,17 +16,11 @@ import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
 public class SQLiteAdviceDAO {
 
 	ILog logger = ServandoLoggerFactory.getLogger(SQLiteAdviceDAO.class);
-
 	private static final String DATA_BASE_NAME = "ADVICES_DB";
-
 	private static final int DATA_BASE_VERSION = 1;
-
 	private static SQLiteAdviceDAO instance;
-
 	private SQLiteAdviceHelper helper;
-
 	private SQLiteDatabase database;
-
 	private boolean initialized = false;
 
 	private SQLiteAdviceDAO()
@@ -61,6 +55,9 @@ public class SQLiteAdviceDAO {
 
 	}
 
+	/**
+	 * Open database to read
+	 */
 	private void openToRead()
 	{
 		if (helper != null && initialized)
@@ -69,6 +66,9 @@ public class SQLiteAdviceDAO {
 		}
 	}
 
+	/**
+	 * Open database to write
+	 */
 	private void openToWrite()
 	{
 		if (helper != null && initialized)
@@ -77,6 +77,9 @@ public class SQLiteAdviceDAO {
 		}
 	}
 
+	/**
+	 * Close database connection
+	 */
 	private void close()
 	{
 		if (database != null)
@@ -86,7 +89,7 @@ public class SQLiteAdviceDAO {
 	}
 
 	/**
-	 * This method allow the user to restart the database
+	 * This method DROP the tables, and then CREATE them again
 	 */
 	public void restartDataBase()
 	{
@@ -102,14 +105,14 @@ public class SQLiteAdviceDAO {
 	 * 
 	 * @return
 	 */
-	public List<Advice> readAll()
+	public List<Advice> getAll()
 	{
 		List<Advice> list = new ArrayList<Advice>();
+		this.openToRead();
 		if (database == null || !initialized)
 		{
 			return list;
 		}
-		this.openToRead();
 		String sql = "select * from " + SQLiteAdviceHelper.ADVICES_TABLE_NAME;
 		Cursor cursor = database.rawQuery(sql, new String[] {});
 		logger.debug(sql);
@@ -141,14 +144,13 @@ public class SQLiteAdviceDAO {
 	/**
 	 * This method delete all messagges from database
 	 */
-	public void clearMessagges()
+	public void removeAll()
 	{
 		if (!initialized)
 		{
 			return;
 		}
 		this.openToWrite();
-
 		if (this.database != null)
 		{
 			String sql = "DELETE FROM " + SQLiteAdviceHelper.ADVICES_TABLE_NAME;
@@ -156,7 +158,6 @@ public class SQLiteAdviceDAO {
 			database.execSQL(sql);
 		}
 		this.close();
-
 	}
 
 	/**
@@ -165,7 +166,7 @@ public class SQLiteAdviceDAO {
 	 * @param advice
 	 * @return The rowid for the advice, or -1 if there are some error
 	 */
-	public long insert(Advice advice)
+	public long add(Advice advice)
 	{
 		if (!initialized)
 		{
@@ -183,7 +184,6 @@ public class SQLiteAdviceDAO {
 		{
 			cv.put(SQLiteAdviceHelper.SEEN_COLUMN, 0);
 		}
-
 		long result = database.insert(SQLiteAdviceHelper.ADVICES_TABLE_NAME, null, cv);
 		if (result != -1)
 		{
@@ -204,13 +204,14 @@ public class SQLiteAdviceDAO {
 	 * @param id
 	 * @return Return false if some there are some problem, true in other case
 	 */
-	public boolean deleteAdvice(int id)
+	public boolean remove(int id)
 	{
+
+		this.openToWrite();
 		if (database == null || !initialized)
 		{
 			return false;
 		}
-		this.openToWrite();
 		String sql = "DELETE FROM " + SQLiteAdviceHelper.ADVICES_TABLE_NAME + " WHERE " + SQLiteAdviceHelper.KEY_COLUMN + " = " + id;
 		try
 		{
@@ -234,11 +235,12 @@ public class SQLiteAdviceDAO {
 	 */
 	public boolean markAsSeen(int id)
 	{
+
+		this.openToWrite();
 		if (database == null || !initialized)
 		{
 			return false;
 		}
-		this.openToWrite();
 		try
 		{
 			String sql = "UPDATE " + SQLiteAdviceHelper.ADVICES_TABLE_NAME + " SET " + SQLiteAdviceHelper.SEEN_COLUMN + " = 1 " + " WHERE id = " + id;
@@ -252,5 +254,44 @@ public class SQLiteAdviceDAO {
 		}
 		this.close();
 		return true;
+	}
+
+	/**
+	 * This method return the number of advices that was not seen
+	 * 
+	 * @return -1 if error
+	 */
+	public int getNotSeenCount()
+	{
+		int result = -1;
+		if (initialized)
+		{
+			try
+			{
+				this.openToRead();
+				if (this.database != null)
+				{
+					String sql = "SELECT COUNT(*) AS result FROM " + SQLiteAdviceHelper.ADVICES_TABLE_NAME + " WHERE "
+							+ SQLiteAdviceHelper.SEEN_COLUMN + " = 0";
+					logger.debug(sql);
+					Cursor cursor = this.database.rawQuery(sql, new String[] {});
+					if (cursor.moveToFirst())
+					{
+						result = cursor.getInt(0);
+					}
+					cursor.close();
+
+				}
+			} catch (SQLiteException ex)
+			{
+				ex.printStackTrace();
+				logger.debug("SQLiteException: " + ex.getMessage());
+			} finally
+			{
+				this.close();
+			}
+
+		}
+		return result;
 	}
 }

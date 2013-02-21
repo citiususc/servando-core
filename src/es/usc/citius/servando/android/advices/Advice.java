@@ -1,6 +1,5 @@
 package es.usc.citius.servando.android.advices;
 
-
 import java.util.Date;
 
 /**
@@ -23,7 +22,6 @@ public class Advice {
 
 	public Advice(String sender, String msg, Date date, boolean seen)
 	{
-
 		this.sender = sender;
 		this.msg = msg;
 		this.date = date;
