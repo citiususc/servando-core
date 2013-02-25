@@ -1,6 +1,8 @@
 package es.usc.citius.servando.android.advices;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 /**
  * This class encapsulate the information of an advice
@@ -8,7 +10,9 @@ import java.util.Date;
  * @author pablojose.viqueira
  * 
  */
-public class Advice {
+public class Advice implements Comparable<Advice> {
+
+	public static final String SERVANDO_SENDER_NAME = "servando";
 
 	private int id;
 
@@ -20,12 +24,18 @@ public class Advice {
 
 	private boolean seen;
 
+	/**
+	 * This attributte is only used to group advices by sender, but in the SQLite database this component doesnt exist
+	 */
+	private List<Advice> subAdvices;
+
 	public Advice(String sender, String msg, Date date, boolean seen)
 	{
 		this.sender = sender;
 		this.msg = msg;
 		this.date = date;
 		this.seen = seen;
+		subAdvices = new ArrayList<Advice>();
 	}
 
 	public Advice(int id, String sender, String msg, Date date, boolean seen)
@@ -35,6 +45,7 @@ public class Advice {
 		this.msg = msg;
 		this.date = date;
 		this.seen = seen;
+		subAdvices = new ArrayList<Advice>();
 	}
 
 	/**
@@ -49,6 +60,7 @@ public class Advice {
 		this.msg = msg;
 		this.date = date;
 		this.seen = false;
+		subAdvices = new ArrayList<Advice>();
 	}
 
 	public int getId()
@@ -83,12 +95,39 @@ public class Advice {
 
 	public boolean isSeen()
 	{
-		return seen;
+		if (subAdvices.size() > 0)
+		{
+			for (Advice adv : subAdvices)
+			{
+				if (!adv.isSeen())
+				{
+					return false;
+				}
+			}
+			return true;
+		} else
+		{
+			return seen;
+		}
 	}
 
+	/**
+	 * This method change the atributte seen for advice, or for subadvices
+	 * 
+	 * @param seen
+	 */
 	public void setSeen(boolean seen)
 	{
-		this.seen = seen;
+		if (subAdvices.size() > 0)
+		{
+			for (Advice adv : subAdvices)
+			{
+				adv.setSeen(seen);
+			}
+		} else
+		{
+			this.seen = seen;
+		}
 	}
 
 	public Date getDate()
@@ -107,6 +146,49 @@ public class Advice {
 		String toReturn;
 		toReturn = "[" + this.id + "] [" + this.sender + "] [" + this.msg + "] [" + this.date.toString() + "] [" + this.seen + "]";
 		return toReturn;
+	}
+
+	@Override
+	public int compareTo(Advice another)
+	{
+		long thismilis = this.getDate().getTime();
+		long anotheremilis = another.getDate().getTime();
+		if (thismilis < anotheremilis)
+		{
+			return -1;
+		} else if (thismilis == anotheremilis)
+		{
+			return 0;
+
+		} else
+		{
+			return 0;
+		}
+	}
+
+	public void addSubAdvice(Advice advice)
+	{
+		this.subAdvices.add(advice);
+	}
+
+	public List<Advice> getSubAdvices()
+	{
+		return this.subAdvices;
+	}
+
+	/**
+	 * This method return true if the advices is composed by subadvices, false if not.
+	 * 
+	 * @return
+	 */
+	public boolean isReport()
+	{
+		if (this.subAdvices.size() > 0)
+		{
+			return true;
+		}
+		return false;
+
 	}
 
 }

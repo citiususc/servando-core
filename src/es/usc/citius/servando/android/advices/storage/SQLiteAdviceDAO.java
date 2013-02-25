@@ -142,6 +142,47 @@ public class SQLiteAdviceDAO {
 	}
 
 	/**
+	 * This method return all advices that at this moment is marked as not seen
+	 * 
+	 * @return
+	 */
+	public List<Advice> getNotSeen()
+	{
+		List<Advice> list = new ArrayList<Advice>();
+		this.openToRead();
+		if (database == null || !initialized)
+		{
+			return list;
+		}
+		String sql = "select * from " + SQLiteAdviceHelper.ADVICES_TABLE_NAME + " WHERE " + SQLiteAdviceHelper.SEEN_COLUMN + " = 0";
+		Cursor cursor = database.rawQuery(sql, new String[] {});
+		logger.debug(sql);
+		if (cursor.getCount() > 0)
+		{
+			cursor.moveToFirst();
+			while (!cursor.isAfterLast())
+			{
+				int id = cursor.getInt(SQLiteAdviceHelper.KEY_COLUMN_INDEX);
+				String sender = cursor.getString(SQLiteAdviceHelper.SENDER_COLUMN_INDEX);
+				String msg = cursor.getString(SQLiteAdviceHelper.MESSAGGE_COLUMN_INDEX);
+				String dateString = cursor.getString(SQLiteAdviceHelper.DATE_COLUMN_INDEX);
+				Date date = new Date(dateString);
+				boolean seen = false;
+				if (cursor.getInt(SQLiteAdviceHelper.SEEN_COLUMN_INDEX) == 1)
+				{
+					seen = true;
+				}
+				Advice advice = new Advice(id, sender, msg, date, seen);
+				list.add(advice);
+				cursor.moveToNext();
+			}
+		}
+		cursor.close();
+		this.close();
+		return list;
+	}
+
+	/**
 	 * This method delete all messagges from database
 	 */
 	public void removeAll()
@@ -233,7 +274,7 @@ public class SQLiteAdviceDAO {
 	 * @param id
 	 * @return
 	 */
-	public boolean markAsSeen(int id)
+	private boolean markAsSeen(int id)
 	{
 
 		this.openToWrite();
@@ -254,6 +295,26 @@ public class SQLiteAdviceDAO {
 		}
 		this.close();
 		return true;
+	}
+
+	/**
+	 * This method mark the advice, or the subadvices as seen, but only in database, the responsable to change the
+	 * object value is the user
+	 * 
+	 * @param adv
+	 */
+	public void markAsSeen(Advice adv)
+	{
+		if (adv.getSubAdvices().size() > 0)
+		{
+			for (Advice advice : adv.getSubAdvices())
+			{
+				this.markAsSeen(advice.getId());
+			}
+		} else
+		{
+			this.markAsSeen(adv.getId());
+		}
 	}
 
 	/**
