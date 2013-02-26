@@ -1,8 +1,10 @@
 package es.usc.citius.servando.android.settings;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Properties;
 
+import android.os.Environment;
 import android.util.Log;
 
 /**
@@ -68,4 +70,18 @@ public class ServandoStartConfig {
 		configuration.put(key, value);
 	}
 
+	public String getPlatformInstallationPath()
+	{
+		return configuration.getProperty(EXTERNAL_PATH);
+	}
+
+	public boolean isPlatformSetupOnSDCard(){
+
+		String settingsPath = Environment.getExternalStorageDirectory().getPath() + configuration.getProperty(EXTERNAL_PATH)
+				+ configuration.getProperty(DIRECTORY) + "/"
+				+ configuration.getProperty(SETTINGS);
+		
+		return new File(settingsPath).exists();
+
+ 	}
 }

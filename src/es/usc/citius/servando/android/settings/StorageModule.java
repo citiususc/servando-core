@@ -278,7 +278,6 @@ public class StorageModule {
 			settingsPath = basePath + "/" + ServandoStartConfig.getInstance().get(ServandoStartConfig.SETTINGS);
 			platformLogsPath = logsPath.getAbsolutePath();
 			platformServicesPath = servicesPath.getAbsolutePath();
-
 		}
 	}
 
@@ -296,8 +295,8 @@ public class StorageModule {
 			File settingsFile = new File(getSettingsPath());
 			if (!settingsFile.exists())
 			{
-				Log.i(DEBUG_TAG, "Settings file not found. Copying default file.");
-				copyDefaultSettings(false);
+				throw new FileNotFoundException("Settings file not found");
+				// copyDefaultSettings(false);
 			}
 
 			Log.i(DEBUG_TAG, "Reading settings from " + settingsPath);

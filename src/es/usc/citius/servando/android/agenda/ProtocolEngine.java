@@ -39,7 +39,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 	private static final int EXECUTOR_CORE_POOL_SIZE = 10;
 
-	private static final int DELAY_TIME_IN_SECONDS = 1;
+	private static final int DELAY_TIME_IN_SECONDS = 0;
 
 	private boolean started = false;
 
@@ -536,6 +536,18 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			ArrayList<MedicalActionExecution> all = new ArrayList<MedicalActionExecution>();
 			all.addAll(pendingActions);
 			all.addAll(executingActions);
+
+			ArrayList<MedicalActionExecution> toRemove = new ArrayList<MedicalActionExecution>();
+			for (MedicalActionExecution exec : all)
+			{
+				if (exec.getAction().getProvider().getId().equals("SERVANDO"))
+				{
+					toRemove.add(exec);
+				}
+			}
+
+			all.removeAll(toRemove);
+
 			return new MedicalActionExecutionList(all);
 		}
 	}

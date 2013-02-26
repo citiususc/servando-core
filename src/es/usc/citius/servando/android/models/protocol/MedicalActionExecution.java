@@ -4,7 +4,6 @@
  */
 package es.usc.citius.servando.android.models.protocol;
 
-import java.util.Arrays;
 import java.util.GregorianCalendar;
 
 import org.simpleframework.xml.Default;
@@ -44,20 +43,20 @@ public class MedicalActionExecution implements AgendaEvent {
 	private int uniqueId = 0;
 
 	@Element(name = "action")
-	private MedicalAction action;
+	protected MedicalAction action;
 
 	@Element(name = "start")
 	@Convert(value = GregorianCalendarConverter.class)
-	private GregorianCalendar startDate;
+	protected GregorianCalendar startDate;
 
 	@Element(name = "timeWindow")
-	private long timeWindow;
+	protected long timeWindow;
 
 	@Element(name = "state")
-	private MedicalActionState state;
+	protected MedicalActionState state;
 
 	@Element(name = "priority")
-	private MedicalActionPriority priority;
+	protected MedicalActionPriority priority;
 	/**
 	 * Parámetros adicionales de la actuación. Los servicios pueden valerse de este campo o, si lo prefieren, definir
 	 * sus propios atributos en clases derivadas. Estos parámetros serán los que se mostrarán al usuario en la interfaz
@@ -65,10 +64,10 @@ public class MedicalActionExecution implements AgendaEvent {
 	 * esta información será guardada en todo momento por el motor de persistencia de la plataforma.
 	 */
 	@Element(name = "parameters")
-	private ParameterList parameters;
+	protected ParameterList parameters;
 
 	@Transient
-	private PlatformResources resources;
+	protected PlatformResources resources;
 
 	@Transient
 	private int color = -1;
@@ -77,7 +76,7 @@ public class MedicalActionExecution implements AgendaEvent {
 	private int icon = -1;
 
 	@Transient
-	private MedicalActionExecutionListener listener;
+	protected MedicalActionExecutionListener listener;
 
 	/**
 	 * Máxima ventana de tiempo a considerar para una actuación médica
@@ -259,16 +258,8 @@ public class MedicalActionExecution implements AgendaEvent {
 		// Si el estado era no comenzado, lo cambiamos a no completado (en otro caso, no lo modificamos)
 		if (state == MedicalActionState.NotStarted)
 		{
-
 			state = MedicalActionState.Uncompleted;
-			log.debug("\n\n\n");
-			log.debug("Parameters is null? " + (parameters == null));
-			log.debug("Parameter count: " + parameters.size());
-			log.debug("Parameter keys: " + Arrays.toString(parameters.keySet().toArray()));
-			log.debug("Parameters as list size: " + parameters.asList().size());
-			log.debug("\n\n\n");
-			// Iniciamos la ejecución de la actuación médica
-			MedicalActionExecutor.showActionReadyNotification(this, ctx);
+			MedicalActionExecutor.startExecution(this, ctx);
 		}
 
 		if (listener != null)
@@ -284,7 +275,7 @@ public class MedicalActionExecution implements AgendaEvent {
 		state = MedicalActionState.Failed;
 
 		Toast.makeText(ctx, "Execution " + getAction().getId() + " aborted!", Toast.LENGTH_LONG).show();
-		MedicalActionExecutor.removeActionReadyNotification(this, ctx);
+		MedicalActionExecutor.abortOrFinish(this, ctx);
 
 		if (listener != null)
 		{
@@ -296,7 +287,7 @@ public class MedicalActionExecution implements AgendaEvent {
 	public void finish(Context ctx)
 	{
 		state = MedicalActionState.Completed;
-		MedicalActionExecutor.removeActionReadyNotification(this, ctx);
+		MedicalActionExecutor.abortOrFinish(this, ctx);
 
 		if (listener != null)
 		{

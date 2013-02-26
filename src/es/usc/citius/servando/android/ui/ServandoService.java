@@ -4,14 +4,18 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Binder;
 import android.os.IBinder;
+import android.os.Vibrator;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.widget.Toast;
 import es.usc.citius.servando.R;
 import es.usc.citius.servando.android.ServandoPlatformFacade;
+import es.usc.citius.servando.android.settings.StorageModule;
 
 public class ServandoService extends Service {
 
@@ -19,9 +23,11 @@ public class ServandoService extends Service {
 
 	private static final String DEBUG_TAG = ServandoService.class.getSimpleName();
 
+	private static long lastNotificationTime = 0;
+
 	// Activities
 	private static final String NOTIFICATIONS_ACTIVITY = "es.usc.citius.servando.android.app.activities.NotificationsActivity";
-	private static final String HOME_ACTIVITY = "es.usc.citius.servando.android.app.activities.HomeActivity";
+	private static final String HOME_ACTIVITY = "es.usc.citius.servando.android.app.activities.PatientHomeActivity";
 	private static final String APPLICATION_PACKAGE = "es.usc.citius.servando.android.app";
 
 	// Notifications ID
@@ -151,6 +157,45 @@ public class ServandoService extends Service {
 				e.printStackTrace();
 			}
 		}
+	}
+
+	public static void updateServandoNotification(Context ctx, boolean requireAtention, boolean vibreateAndSound, String rollMsg)
+	{
+
+		// TODO Externalize strings
+		String msgRequireAtention = "Servando requires your atention!";
+		String defaultRollMsg = "Servando requires your atention!";
+		String msgAllOk = "✔";
+		String title = "Servando";
+
+		String msg = requireAtention ? msgRequireAtention : msgAllOk;
+		String rollMessage = (requireAtention && rollMsg != null) ? rollMsg : defaultRollMsg;
+		int icon = requireAtention ? R.drawable.ic_notification_atention : R.drawable.ic_servando_notification;
+
+		// Create intent to open patient activity
+		Intent contentIntent = new Intent();
+		contentIntent.setClassName("es.usc.citius.servando.android.app", HOME_ACTIVITY);
+		// Create pending intent
+		PendingIntent appIntent = PendingIntent.getActivity(ctx, 0, contentIntent, PendingIntent.FLAG_ONE_SHOT);
+		// Create notification
+		Notification n = new Notification(icon, rollMessage, System.currentTimeMillis());
+		n.setLatestEventInfo(ctx, title, msg, appIntent);
+
+		long currentTime = System.currentTimeMillis();
+		if (vibreateAndSound && (currentTime - lastNotificationTime > 2000))
+		{
+			// Get instance of Vibrator from current Context
+			Vibrator v = (Vibrator) ctx.getSystemService(Context.VIBRATOR_SERVICE);
+			// Vibrate for 300 milliseconds
+			v.vibrate(new long[] { 100, 50, 100, 50, 100, 50, 100 }, -1);
+			String path = StorageModule.getInstance().getBasePath() + "/sound.ogg";
+			n.sound = Uri.parse(path);
+		}
+
+		// Show notification
+		((NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE)).notify(SERVANDO_ID, n);
+
+		lastNotificationTime = System.currentTimeMillis();
 	}
 
 	public class ServandoBinder extends Binder {
