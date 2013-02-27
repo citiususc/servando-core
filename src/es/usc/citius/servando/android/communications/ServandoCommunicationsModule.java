@@ -1,6 +1,11 @@
 package es.usc.citius.servando.android.communications;
 
+import java.io.IOException;
+import java.net.URI;
 import java.util.HashMap;
+
+import android.util.Log;
+import es.usc.citius.servando.android.settings.StorageModule;
 
 /**
  * Implemets the platform communications module.
@@ -48,7 +53,28 @@ public class ServandoCommunicationsModule {
 			throw new IllegalArgumentException("Service with ID " + service.getId() + " already registered");
 		}
 		registeredServices.put(service.getId(), service);
-		objectTransporters.put(service, new ObjectTransporter(service.getServiceRemoteUri(), service.getId()));
+		objectTransporters.put(service, createObjectTransporter(service.getServiceRemoteUri(), service.getId()));
+	}
+
+	public ObjectTransporter createObjectTransporter(URI uri, String serviceId)
+	{
+		ObjectTransporter o = null;
+		try
+		{
+			if (StorageModule.getInstance().getSettings().isCommunicationsModuleEnabled())
+			{
+				o = new ObjectTransporter(uri, serviceId);
+			} else
+			{
+				o = new NullObjectTransporter();
+			}
+
+		} catch (IOException e)
+		{
+			Log.e(ObjectTransporter.class.getSimpleName(), "Error creating object transporter", e);
+		}
+
+		return o;
 	}
 
 	/**

@@ -55,6 +55,12 @@ public class ServandoSettings {
 	 */
 	@Element(name = "httpServerEnabled", required = false)
 	private boolean httpServerEnabled;
+
+	/**
+	 * Indicates whether to enables the httpServer on the device
+	 */
+	@Element(name = "communicationsModuleEnabled", required = false)
+	private boolean communicationsModuleEnabled = true;
 	/**
 	 * List of available services
 	 */
@@ -124,6 +130,16 @@ public class ServandoSettings {
 	public void setHttpServerEnabled(boolean httpServerEnabled)
 	{
 		this.httpServerEnabled = httpServerEnabled;
+	}
+
+	public boolean isCommunicationsModuleEnabled()
+	{
+		return communicationsModuleEnabled;
+	}
+
+	public void setCommunicationsModuleEnabled(boolean communicationsModuleEnabled)
+	{
+		this.communicationsModuleEnabled = communicationsModuleEnabled;
 	}
 
 	/**

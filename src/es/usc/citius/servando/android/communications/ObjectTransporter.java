@@ -90,7 +90,7 @@ public class ObjectTransporter {
 	 * @param remotePort Puerto en el que escucha el servidor
 	 * @param remoteEndPoint ruta relativa al servidor en la que se encuentra desplegado el servicio
 	 */
-	public ObjectTransporter(String serviceId, String remoteIp, String remotePort, String remoteEndPoint)
+	ObjectTransporter(String serviceId, String remoteIp, String remotePort, String remoteEndPoint)
 	{
 		this();
 		serviceUri = URI.create("http://" + remoteIp + ":" + remotePort + (remoteEndPoint.startsWith("/") ? "" : "/") + remoteEndPoint);
@@ -104,7 +104,7 @@ public class ObjectTransporter {
 	 * @param serviceId Id del servicio remoto al que se enviarán los mensajes
 	 * @param serviceUri {@link URI} del servicio
 	 */
-	public ObjectTransporter(URI serviceUri, String serviceId)
+	ObjectTransporter(URI serviceUri, String serviceId)
 	{
 		this();
 		remoteService = serviceId;

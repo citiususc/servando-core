@@ -244,10 +244,19 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 			{
 				registerService(s);
 			}
+
 			// notify platform start event
 			for (IPlatformService s : loadedServices)
 			{
 				s.onPlatformStarted();
+			}
+
+			for (IPlatformService s : loadedServices)
+			{
+				for (MedicalAction a : s.getProvidedActions())
+				{
+					log.debug("Service " + s.getId() + ": " + a.getId());
+				}
 			}
 
 			// start HTTP server if needed
@@ -257,13 +266,13 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 				startHttpServer(ctx);
 			}
 
+			SQLiteAdviceDAO.getInstance().initialize(ctx);
+
 			ProtocolEngineServiceBinder.getInstance().setBindingListener(this);
 			ProtocolEngineServiceBinder.getInstance().startAndBindToAppContext(ctx);
 
 			SystemStatusMonitor.getInstance().updateStatus(ctx);
 			log.info(SystemStatusMonitor.getInstance().toString());
-
-			SQLiteAdviceDAO.getInstance().initialize(ctx);
 
 			started = true;
 		}
