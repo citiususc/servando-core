@@ -5,13 +5,15 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
-import java.util.GregorianCalendar;
 import java.util.List;
 
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
+import android.util.Log;
 import es.usc.citius.servando.android.ServandoPlatformFacade;
 import es.usc.citius.servando.android.logging.ILog;
 import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
@@ -75,7 +77,7 @@ public class ProtocolEngineHelper {
 
 			if (protocol.getStartDate() == null)
 			{
-				protocol.setStartDate(new GregorianCalendar());
+				// protocol.setStartDate(new GregorianCalendar());
 				saveProtocol(protocol);
 			}
 			// Actualizamos las referencias a las actuaciones médicas y creamos las nuevas ejecuciones.
@@ -132,6 +134,8 @@ public class ProtocolEngineHelper {
 	public List<MedicalActionExecution> getDayActions(Calendar jdkCal)
 	{
 
+		DateTimeFormatter fmt = DateTimeFormat.forPattern("HH:mm:ss, dd/MM");
+
 		DateTime date = new DateTime(jdkCal);
 		DateTime protocolStart = new DateTime(protocol.getStartDate());
 
@@ -141,6 +145,9 @@ public class ProtocolEngineHelper {
 			throw new NullPointerException(
 					"No se conoce la fecha de inicio de aplicación de este protocolo. Imposible calcular las actuaciones derivadas del mismo");
 		}
+
+		log("ProtocolStart: " + protocolStart.toString(fmt));
+		log("Day: " + date.toString(fmt));
 
 		// Fechas de inicio y fin de día
 		DateTime begin, end;
@@ -154,6 +161,7 @@ public class ProtocolEngineHelper {
 		// Intervalo que abarca desde el inicio hasta el final del día
 		Interval dayInterval = new Interval(begin, end);
 
+		log("Begin/End [" + begin.toString(fmt) + ", " + end.toString(fmt) + "]");
 		// Debemos recorrer todas las acciones del protocolo.
 
 		for (ProtocolAction a : protocol.getActions())
@@ -161,25 +169,57 @@ public class ProtocolEngineHelper {
 			System.out.println(a.toString());
 		}
 
+		log("Looping over protocol actions:");
 		for (ProtocolAction actionDefinition : protocol.getActions())
 		{
+			log(" Action: " + actionDefinition.toString());
 
 			DateTime actionStart, actionEnd;
 
 			// Primero comprobamos que el rango de tiempos de la acción abarque la fecha solicitada.
 			actionStart = protocolStart.plusSeconds((int) actionDefinition.getStartGap());
 
-			// Calculamos la fecha límite de la ventana temporal de la última iteración que generará esta acción.
-			int realActionWindow = (int) (actionDefinition.getInterval() == 0 ? actionDefinition.getTimeWindow() : actionDefinition.getInterval()
-					* (actionDefinition.getDuration() / actionDefinition.getInterval()));
+			log("Action start: " + actionStart.toString(fmt));
 
-			actionEnd = actionStart.plusSeconds(realActionWindow);
+			// Calculamos la fecha límite de la ventana temporal de la última iteración que generará esta acción.
+			/*******/
+			// int realActionWindow = (int) (actionDefinition.getInterval() == 0 ? actionDefinition.getTimeWindow() :
+			// actionDefinition.getInterval()
+			// * (actionDefinition.getDuration() / actionDefinition.getInterval()));
+			//
+			// actionEnd = actionStart.plusSeconds(realActionWindow);
+			/*******/
+
+			long ainterval = actionDefinition.getInterval();
+
+			if (ainterval == 0)
+			{
+				log("Interval is not  0");
+				actionEnd = actionStart.plusSeconds((int) actionDefinition.getTimeWindow());
+			} else
+			{
+				actionEnd = actionStart.plusSeconds((int) (ainterval * (actionDefinition.getDuration() / ainterval))).plusSeconds(
+						(int) actionDefinition.getTimeWindow());
+
+				log("Suma 1: " + ainterval * (ainterval / actionDefinition.getInterval()));
+				log("Suma 2: " + actionDefinition.getTimeWindow());
+			}
+
+			// actionEnd = actionDefinition.getInterval() == 0 ? actionStart.plusSeconds((int)
+			// actionDefinition.getTimeWindow())
+			// : actionStart.plusSeconds(
+			// (int) (actionDefinition.getInterval() * (actionDefinition.getDuration() /
+			// actionDefinition.getInterval()))).plusSeconds(
+			// (int) actionDefinition.getTimeWindow());
+
+			log("Action end: " + actionEnd.toString(fmt));
 
 			// Intervalo que abarca dende o inicio ata o final da acción médica
 			Interval actionInterval = new Interval(actionStart, actionEnd);
 
-			if (dayInterval.contains(actionInterval))
+			if (actionInterval.overlaps(dayInterval))
 			{
+				log("Day interval contains action interval");
 				/*
 				 * En primer lugar, buscamos aquellas actuaciones que comienzan durante el día solicitado.
 				 */
@@ -194,6 +234,9 @@ public class ProtocolEngineHelper {
 				// Ahora añadimos todas las actuaciones que comiencen entre el momento más pronto y el inicio del día
 				// menos un segundo.
 				dayActions.addAll(getExecutionsStartingBetween(actionDefinition, new Interval(earliestTime, begin.minusSeconds(1))));
+			} else
+			{
+				log("Day interval doesnt contains action interval");
 			}
 		}
 
@@ -263,11 +306,11 @@ public class ProtocolEngineHelper {
 		boolean cond2 = iteration * action.getInterval() <= action.getDuration();
 		boolean condition = cond1 && cond2;
 
-		log.debug("Action: " + action.getAction().getId() + ", cond1: " + cond1 + ", cond2: " + cond2);
-
 		// Mientras la acción genere nuevas actuaciones con fecha de inicio durante el intervalo
 		while (condition)
 		{
+			log.debug("Action: " + action.getAction().getId() + ", cond1: " + cond1 + ", cond2: " + cond2);
+
 			// Si no es una de las excepciones, la añadimos a la lista.
 			if (!action.getExceptions().contains(iteration))
 			{
@@ -420,5 +463,10 @@ public class ProtocolEngineHelper {
 			log.error("No se ha podido guardar el registro de actuaciones comenzadas", ex);
 		}
 
+	}
+
+	void log(String str)
+	{
+		Log.i("ProtocolEngineHelper", str);
 	}
 }

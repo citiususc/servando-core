@@ -50,7 +50,9 @@ public class ProtocolAction {
 	/**
 	 * Duración de la acción en segundos, es decir, indica la finalización en la repetición de la actuación médica
 	 * asociada. Normalmente este valor será un múltiplo de Interval. Si vale 0, significa que la actuación se repetirá
-	 * durante toda la ejecución del protocolo.
+	 * durante toda la ejecución del protocolo <br>
+	 * TODO: Si duración = 0 e interval != 0 falla
+	 * 
 	 */
 	@Element(name = "duration")
 	@Convert(value = DurationConverter.class)
