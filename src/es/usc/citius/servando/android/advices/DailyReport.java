@@ -6,6 +6,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
+import org.joda.time.DateMidnight;
+import org.joda.time.DateTime;
+
 import android.text.format.DateFormat;
 import es.usc.citius.servando.android.advices.storage.SQLiteAdviceDAO;
 import es.usc.citius.servando.android.logging.ILog;
@@ -39,10 +42,53 @@ public class DailyReport {
 		return instance;
 	}
 
-	private List<Advice> generateReport(List<Advice> advices)
+	/**
+	 * This method delete all system messages that should by showed the next day. This type of messages are sent by
+	 * system, so the system is responsible for insert them properly.
+	 * 
+	 * @param original The original list of Advices
+	 * @return The modified list
+	 */
+	private List<Advice> deleteFutureSystemAdvices(List<Advice> original)
+	{
+		// Duplicamos la lista
+		List<Advice> withOutFutureAdvices = new ArrayList<Advice>(original);
+		List<Advice> toRemove = new ArrayList<Advice>();
+
+		// Nos situamos en las doce de la noche del día siguiente
+		DateTime limit = new DateMidnight().toDateTime();
+		limit.plusDays(1);
+		for (Advice a : original)
+		{
+			// Si es un mensaje del sistema...
+			if (Advice.SERVANDO_SENDER_NAME.equals(a.getSender()))
+			{
+				DateTime aTime = new DateTime(a.getDate());
+				// ... y es para mañana
+				if (aTime.isAfter(limit))
+				{
+					toRemove.add(a);
+				}
+			}
+
+		}
+		withOutFutureAdvices.removeAll(toRemove);
+		return withOutFutureAdvices;
+
+	}
+
+	/**
+	 * This method get all advices and create groups(resume all of this advice in on) with the advices which are sent by
+	 * system in the same day. The other advices are shown as they were inserted.
+	 * 
+	 * @param listOfAdvices
+	 * @return
+	 */
+	private List<Advice> generateReport(List<Advice> listOfAdvices)
 	{
 		List<Advice> reports = new ArrayList<Advice>();
-
+		// Eliminamos de la lista los que se tengan que mostrar mañana
+		List<Advice> advices = deleteFutureSystemAdvices(listOfAdvices);
 		// Ordenamos la lista por fecha
 		Collections.sort(advices);
 
