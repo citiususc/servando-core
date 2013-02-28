@@ -35,4 +35,10 @@ public class NullObjectTransporter extends ObjectTransporter {
 		return null;
 	}
 
+	@Override
+	public void reliableSend(Object obj, long timeout)
+	{
+
+	}
+
 }

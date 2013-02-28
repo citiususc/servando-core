@@ -30,9 +30,14 @@ public class MedicalActionExecutionComparator implements Comparator<MedicalActio
 			// Si la prioridad también es la misma, entonces comparamos la ventana temporal
 			if (comparison == 0)
 			{
-				comparison = new Long(x.getTimeWindow()).compareTo(new Long(y.getTimeWindow()));
+				comparison = Long.valueOf(x.getTimeWindow()).compareTo(Long.valueOf(y.getTimeWindow()));
 
-				System.out.println(comparison);
+				if (comparison == 0)
+				{
+					// TODO: Ollo, insertado para as accións que únicamente se diferencian por parámetros
+					comparison = x.toString().equals(y.toString()) ? 0 : 1;
+				}
+
 			}
 		}
 

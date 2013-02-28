@@ -119,7 +119,7 @@ public class ObjectTransporter {
 	 * @param serviceUri {@link URI} del servicio
 	 * @throws {@link URISyntaxException} si la URL especificada no es válida
 	 */
-	public ObjectTransporter(URL serviceUrl, String serviceId) throws URISyntaxException
+	ObjectTransporter(URL serviceUrl, String serviceId) throws URISyntaxException
 	{
 		this();
 		remoteService = serviceId;

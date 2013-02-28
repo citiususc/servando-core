@@ -7,6 +7,8 @@ import org.simpleframework.xml.Default;
 import org.simpleframework.xml.DefaultType;
 import org.simpleframework.xml.ElementList;
 
+import android.util.Log;
+
 /**
  * Esta clase agrupa un conjunto de {@link MedicalActionExecution}, permitiendo su persistencia o transmisión a través
  * del módulo de comunicaciones.
@@ -38,6 +40,21 @@ public class MedicalActionExecutionList {
 	public void setExecutions(List<MedicalActionExecution> executions)
 	{
 		this.executions = executions;
+	}
+
+	public boolean contains(MedicalActionExecution c)
+	{
+		boolean contains = false;
+		for (MedicalActionExecution e : executions)
+		{
+			if (MedicalActionExecutionComparator.getInstance().compare(c, e) == 0)
+			{
+				Log.d("Comparator", "Compare true");
+				contains = true;
+				break;
+			}
+		}
+		return contains;
 	}
 
 }

@@ -12,7 +12,7 @@ import java.util.List;
  */
 public class Advice implements Comparable<Advice> {
 
-	public static final String SERVANDO_SENDER_NAME = "servando";
+	public static final String SERVANDO_SENDER_NAME = "system";
 
 	private int id;
 

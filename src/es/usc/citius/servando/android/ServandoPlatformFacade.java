@@ -438,7 +438,7 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 			@Override
 			public void run()
 			{
-				engine.loadDayActions();
+				engine.start();
 
 			}
 		}, 1000);

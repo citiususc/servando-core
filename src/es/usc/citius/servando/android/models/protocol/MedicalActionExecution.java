@@ -15,7 +15,6 @@ import org.simpleframework.xml.convert.Convert;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.widget.Toast;
 import es.usc.citius.servando.R;
 import es.usc.citius.servando.android.agenda.AgendaEvent;
 import es.usc.citius.servando.android.agenda.MedicalActionExecutionListener;
@@ -23,6 +22,7 @@ import es.usc.citius.servando.android.agenda.MedicalActionExecutor;
 import es.usc.citius.servando.android.agenda.PlatformResources;
 import es.usc.citius.servando.android.logging.ILog;
 import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
+import es.usc.citius.servando.android.models.util.Parameter;
 import es.usc.citius.servando.android.models.util.ParameterList;
 import es.usc.citius.servando.android.xml.converters.GregorianCalendarConverter;
 
@@ -274,7 +274,7 @@ public class MedicalActionExecution implements AgendaEvent {
 		// Si el estado era no comenzado, lo cambiamos a no completado (en otro caso, no lo modificamos)
 		state = MedicalActionState.Failed;
 
-		Toast.makeText(ctx, "Execution " + getAction().getId() + " aborted!", Toast.LENGTH_LONG).show();
+		log.debug("Execution " + getAction().getId() + " aborted! Listener is " + (listener != null ? " not" : "") + " null");
 		MedicalActionExecutor.abortOrFinish(this, ctx);
 
 		if (listener != null)
@@ -346,6 +346,17 @@ public class MedicalActionExecution implements AgendaEvent {
 		{
 			builder.append("resources=");
 			builder.append(Integer.toBinaryString(resources.getValue()));
+			builder.append(",\n ");
+		}
+		if (parameters != null)
+		{
+
+			builder.append("parameters=[");
+			for (Parameter p : parameters.getParameters())
+			{
+				builder.append("{" + p.getName() + ":" + p.getValue() + "},");
+			}
+			builder.append("]");
 		}
 		builder.append("]");
 		return builder.toString();
@@ -401,5 +412,62 @@ public class MedicalActionExecution implements AgendaEvent {
 	{
 		this.uniqueId = uniqueId;
 	}
+	
+	
+	/// <summary>
+    /// Indicates whether the current object is equal to another object of the same type.
+    /// </summary>
+    /// <param name="other">An object to compare with this object.</param>
+    /// <returns>
+    /// true if the current object is equal to the <paramref name="other"/> parameter; otherwise, false. Para evaluar
+    /// la igualdad, se comprobará que la actuación médica tenga el mismo identificador de actuación, la misma prioridad,
+    /// la misma fecha de inicio, y la misma ventana temporal.
+    /// </returns>
+	@Override
+    public boolean equals(Object o)
+    {
+		if(!(o instanceof MedicalActionExecution)){
+			return false;
+		}
+		
+		MedicalActionExecution other = (MedicalActionExecution)o;
+        boolean equals = other.getPriority().equals(priority) && other.getStartDate().equals(startDate) && other.getTimeWindow() == timeWindow;
+        if (other.getAction()!=null && action!=null)
+        {
+            equals &= other.getAction().getId().equals(action.getId());
+        }
+        // Si al final se decide incluír también los parámetros en la igualdad, descomentar esta sección.
+        //comprobamos los parámetros.
+        if (equals && getParameters()!=null && other.getParameters()!=null && getParameters().size()==other.getParameters().size())
+        {
+        	for(Parameter p : parameters.getParameters()){
+        		String k = p.getName();
+        		String v = p.getValue();
+        		String op = other.getParameters().get(k);
+        		if(!(op != null && op.equals(v))){
+        			equals = false;
+        			break;
+        		}
+        	}
+        	
+        	if(equals){
+        		for(Parameter p : other.getParameters().getParameters()){
+        			String k = p.getName();
+            		String v = p.getValue();
+            		String op = parameters.get(k);
+            		if(!(op != null && op.equals(v))){
+            			equals = false;
+            			break;
+            		}
+        		}
+        	}
+        }
+        else
+        {
+            equals = false;
+        }
+         
+        return equals;
+    }
 
 }

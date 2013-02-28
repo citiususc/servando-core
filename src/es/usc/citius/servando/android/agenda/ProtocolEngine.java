@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +19,8 @@ import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
 import android.util.Log;
+import es.usc.citius.servando.android.advices.Advice;
+import es.usc.citius.servando.android.advices.storage.SQLiteAdviceDAO;
 import es.usc.citius.servando.android.agenda.ExecutionInfo.ExecutionInfoListener;
 import es.usc.citius.servando.android.logging.ILog;
 import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
@@ -103,12 +106,11 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			uncompletedActions = engineHelper.loadUncompletedActions();
 
 			engineLock = new Object();
-			started = true;
 		}
 	}
 
 	// TODO private
-	public void loadDayActions()
+	private void loadDayActions()
 	{
 
 		DateTime now = DateTime.now();
@@ -137,6 +139,17 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			// Comprobamos si la actuación aparece en el registro de actuaciones completas.
 			canEnter &= !finishedActions.getExecutions().contains(exec);
 
+			log.debug("\n\n");
+			log.debug("\n\n");
+			log.debug("\n\n");
+			for (MedicalActionExecution e : finishedActions.getExecutions())
+			{
+				log.debug("x: " + exec.toString());
+				log.debug("y: " + e.toString());
+				log.debug("Compare: " + MedicalActionExecutionComparator.getInstance().compare(exec, e));
+				log.debug("\n\n");
+			}
+
 			if (canEnter)
 			{
 
@@ -160,7 +173,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 				execution.setExecutionListener(this);
 
 				// Añadimos los temporizadores, en función de si ya ha comenzado o no la ventana de ejecución.
-				if (execution.getStartDate().after(GregorianCalendar.getInstance()))
+				if (startDate.isAfterNow())
 				{
 					long dueTime = new Duration(DateTime.now(), startDate).getStandardSeconds();
 					TimerTask task = new MedicalActionStartTimerInvokedTask(execution);
@@ -225,6 +238,10 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			// Obtenemos las actuaciones ya finalizadas, y las iniciadas pero no completadas
 			finishedActions = engineHelper.loadFinishedActions();
 			uncompletedActions = engineHelper.loadUncompletedActions();
+
+			log.debug("FinishedActions: " + (finishedActions != null ? finishedActions.getExecutions().size() : 0));
+			log.debug("UncompletedActions: " + (uncompletedActions != null ? uncompletedActions.getExecutions().size() : 0));
+
 			// Añadimos las actuaciones del día de hoy al planificador
 			loadDayActions();
 			// Indicamos que ya está el singleton iniciado
@@ -367,6 +384,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 	private void deleteAction(MedicalActionExecution execution)
 	{
+		log.debug("Deleting execution " + execution.getAction().getId());
 		// Eliminamos los gestores de eventos
 		execution.removeExecutionListener();
 		// Y la eliminamos de todas las listas y diccionarios, excepto del protocolo si ya ha finalizado.
@@ -411,6 +429,11 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 	@Override
 	public void onAbort(MedicalActionExecution target)
 	{
+
+		SQLiteAdviceDAO.getInstance().add(new Advice("Servando", "A acción " + target.getAction().getDisplayName() + " caducou", new Date()));
+		SQLiteAdviceDAO.getInstance().add(new Advice(Advice.SERVANDO_SENDER_NAME, "O protocolo estase a incumplir", new Date()));
+
+		log.debug("On abort called");
 		deleteAction(target);
 		schedule();
 		raiseOnMedicalActionAbort(target);
@@ -432,6 +455,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 	private void raiseOnProtocolChangeEvent()
 	{
+		log.debug("Raising protocol change...");
 		for (ProtocolEngineListener l : protocolListeners)
 		{
 			l.onProtocolChanged();
@@ -440,6 +464,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 	private void raiseOnMedicalActionStart(MedicalActionExecution mae)
 	{
+		log.debug("Raising medical action start...");
 		for (ProtocolEngineListener l : protocolListeners)
 		{
 			l.onExecutionStart(mae);
@@ -448,6 +473,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 	private void raiseOnMedicalActionAbort(MedicalActionExecution mae)
 	{
+		log.debug("Raising medical action abort...");
 		for (ProtocolEngineListener l : protocolListeners)
 		{
 			l.onExecutionAbort(mae);
@@ -456,6 +482,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 	private void raiseOnMedicalActionFinish(MedicalActionExecution mae)
 	{
+		log.debug("Raising medical action finish...");
 		for (ProtocolEngineListener l : protocolListeners)
 		{
 			l.onExecutionFinish(mae);
@@ -550,6 +577,13 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 			return new MedicalActionExecutionList(all);
 		}
+	}
+
+	public List<MedicalActionExecution> getFilteredDayActions(Calendar jdkCal)
+	{
+		List<MedicalActionExecution> dayActions = getDayActions(jdkCal);
+		dayActions.removeAll(finishedActions.getExecutions());
+		return dayActions;
 	}
 
 	private class StartMedicalActionExecutionTask extends TimerTask {
@@ -663,32 +697,40 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 		@Override
 		public void run()
 		{
-			DateTime startDate = new DateTime(execution.getStartDate());
-			// Si la ventana de ejecución de la actuación ha expirado. Liberamos los recursos, y si la actuación está en
-			// ejecución,
-			// la abortamos.
-			if (startDate.plusSeconds((int) execution.getTimeWindow()).isBeforeNow())
+			synchronized (engineLock)
 			{
-				executor.remove(timerMappings.get(execution));
-				// Si está en ejecución, la abortamos y ejecutamos el planificador.
-				if (executingActions.contains(execution))
-				{
-					execution.abort(ProtocolEngine.this);
-					getInfo(execution).setFinishTime(GregorianCalendar.getInstance());
-					getInfo(execution).setStatus(ExecutionInfo.EXEC_ABORTED);
+				log.debug("Executing expiration task for " + execution.getAction().getId());
 
-				} else if (pendingActions.contains(execution))
+				DateTime startDate = new DateTime(execution.getStartDate());
+				// Si la ventana de ejecución de la actuación ha expirado. Liberamos los recursos, y si la actuación
+				// está en
+				// ejecución,
+				// la abortamos.
+				if (startDate.plusSeconds((int) execution.getTimeWindow()).isAfterNow())
 				{
-					deleteAction(execution);
+					executor.remove(timerMappings.get(execution));
+					// Si está en ejecución, la abortamos y ejecutamos el planificador.
+					if (executingActions.contains(execution))
+					{
+						log.debug("Aborting execution " + execution.getAction().getId());
+						execution.abort(ProtocolEngine.this);
+						getInfo(execution).setFinishTime(GregorianCalendar.getInstance());
+						getInfo(execution).setStatus(ExecutionInfo.EXEC_ABORTED);
+
+					} else if (pendingActions.contains(execution))
+					{
+						deleteAction(execution);
+					}
 				}
-			}
-			// En otro caso, modificamos el tiempo del temporizador para seguir acercándonos al momento de expiración
-			else
-			{
-				long dueTime = new Duration(DateTime.now(), new DateTime(execution.getStartDate()).plusSeconds((int) execution.getTimeWindow())).getStandardSeconds();
-
-				executor.remove(timerMappings.get(execution));
-				executor.schedule(this, dueTime, TimeUnit.SECONDS);
+				// En otro caso, modificamos el tiempo del temporizador para seguir acercándonos al momento de
+				// expiración
+				else
+				{
+					long dueTime = new Duration(DateTime.now(), new DateTime(execution.getStartDate()).plusSeconds((int) execution.getTimeWindow())).getStandardSeconds();
+					log.debug("Reescheduling expiration " + dueTime + " seconds");
+					// executor.remove(timerMappings.get(execution));
+					executor.schedule(this, dueTime, TimeUnit.SECONDS);
+				}
 			}
 		}
 
@@ -755,16 +797,8 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 		raiseOnProtocolChangeEvent();
 	}
 
-	public List<MedicalActionExecution> getDayActions(Calendar c)
+	private List<MedicalActionExecution> getDayActions(Calendar c)
 	{
-
-		// ArrayList<MedicalActionExecution> list = new ArrayList<MedicalActionExecution>();
-		// list.addAll(executingActions);
-		// list.addAll(pendingActions);
-		// list.addAll(lockedActions);
-		// System.out.println(executingActions.size() + ", " + pendingActions.size() + ", " + lockedActions.size() +
-		// ", " + list.size());
-
 		return engineHelper.getDayActions(c);
 	}
 

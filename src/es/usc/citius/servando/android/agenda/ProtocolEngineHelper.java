@@ -39,13 +39,15 @@ public class ProtocolEngineHelper {
 
 	private String protocolFileName;
 
-	private int logTime;
+	private int logTime = 60;
 
 	private String uncompletedActionsFileName;
 
 	private String finishedActionsFileName;
 
 	private int uniqueId = 100;
+
+	DateTimeFormatter fmt = DateTimeFormat.forPattern("HH:mm:ss, dd/MM");
 
 	public ProtocolEngineHelper()
 	{
@@ -134,7 +136,7 @@ public class ProtocolEngineHelper {
 	public List<MedicalActionExecution> getDayActions(Calendar jdkCal)
 	{
 
-		DateTimeFormatter fmt = DateTimeFormat.forPattern("HH:mm:ss, dd/MM");
+
 
 		DateTime date = new DateTime(jdkCal);
 		DateTime protocolStart = new DateTime(protocol.getStartDate());
@@ -347,6 +349,7 @@ public class ProtocolEngineHelper {
 		throw new IllegalArgumentException("No se encuentra ninguna actuación médica con ese identificador");
 	}
 
+
 	public MedicalActionExecutionList loadFinishedActions()
 	{
 		MedicalActionExecutionList list = null;
@@ -369,9 +372,21 @@ public class ProtocolEngineHelper {
 		MedicalActionExecutionList list = null;
 
 		File uncompletedActionsFile = new File(basePath + "/" + uncompletedActionsFileName);
+
+		if (!uncompletedActionsFile.exists())
+		{
+			log.debug("File " + uncompletedActionsFile.getAbsolutePath() + " doenst exists");
+			return new MedicalActionExecutionList();
+		}
+
 		try
 		{
+
+			// log.debug("Deserializing " + uncompletedActionsFile.getAbsolutePath());
+
 			list = (MedicalActionExecutionList) serializator.deserialize(uncompletedActionsFile, MedicalActionExecutionList.class);
+
+			// log.debug("Loaded uncompleted: " + list.getExecutions().size());
 
 			List<MedicalActionExecution> expired = new ArrayList<MedicalActionExecution>();
 			// Si hay alguna actuación ya caducada, la eliminamos de las no completadas.
@@ -380,8 +395,10 @@ public class ProtocolEngineHelper {
 
 				DateTime startDate = new DateTime(e.getStartDate());
 
-				if (startDate.plusSeconds((int) e.getTimeWindow()).isAfter(DateTime.now()))
+				if (startDate.plusSeconds((int) e.getTimeWindow()).isBefore(DateTime.now()))
 				{
+					// log.debug("Action " + e.getAction().getId() + " [" + startDate.toString(fmt) + ", " +
+					// e.getTimeWindow() + "] expired");
 					expired.add(e);
 				}
 			}
@@ -390,7 +407,7 @@ public class ProtocolEngineHelper {
 
 		} catch (Exception ex)
 		{
-			log.info("No hay ningún registro de actuaciones no completadas en el sistema");
+			log.error("No hay ningún registro de actuaciones no completadas en el sistema", ex);
 			list = new MedicalActionExecutionList();
 		}
 		return list;
@@ -407,21 +424,31 @@ public class ProtocolEngineHelper {
 			// menos
 			// que su ventana de actuación aún esté activa.
 			// Lista que guardaremos
-			MedicalActionExecutionList toStore = new MedicalActionExecutionList();
-			for (MedicalActionExecution finishedAction : list.getExecutions())
-			{
-				// Si el momento de inicio de la actuación es anterior a LogTime días desde este momento, y la ventana
-				// de ejecución
-				// ya no está activa, la actuación no se guardará.
-				if (new Duration(new DateTime(finishedAction.getStartDate()), DateTime.now()).getStandardDays() < logTime)
-				{
-					toStore.getExecutions().add(
-							new MedicalActionExecution(finishedAction.getAction(), finishedAction.getParameters(), finishedAction.getPriority(),
-									finishedAction.getStartDate(), finishedAction.getTimeWindow(), finishedAction.getState()));
-				}
-			}
+
 			finishedActionsFile = new File(basePath + "/" + finishedActionsFileName);
-			serializator.serialize(toStore, finishedActionsFile);
+
+			if (list != null && list.getExecutions().size() > 0)
+			{
+
+				MedicalActionExecutionList toStore = new MedicalActionExecutionList();
+				for (MedicalActionExecution finishedAction : list.getExecutions())
+				{
+					// Si el momento de inicio de la actuación es anterior a LogTime días desde este momento, y la
+					// ventana
+					// de ejecución
+					// ya no está activa, la actuación no se guardará.
+					if (new Duration(new DateTime(finishedAction.getStartDate()), DateTime.now()).getStandardDays() < logTime)
+					{
+						toStore.getExecutions().add(
+								new MedicalActionExecution(finishedAction.getAction(), finishedAction.getParameters(), finishedAction.getPriority(),
+										finishedAction.getStartDate(), finishedAction.getTimeWindow(), finishedAction.getState()));
+					}
+				}
+				serializator.serialize(toStore, finishedActionsFile);
+			} else
+			{
+				finishedActionsFile.delete();
+			}
 
 		} catch (Exception ex)
 		{
@@ -438,25 +465,34 @@ public class ProtocolEngineHelper {
 			// Convertimos cada actuación de la lista a una representación plana, para evitar posibles errores con
 			// subclases de MedicalActionExecution. Además, eliminamos aquellas actuaciones de más de 60 días de
 			// antigüedad, a
-			// menos que su ventana de actuación aún esté activa.
 
-			// Lista que guardaremos
-			MedicalActionExecutionList toStore = new MedicalActionExecutionList();
-
-			for (MedicalActionExecution uncompletedAction : list.getExecutions())
-			{
-				// Si el momento de inicio de la actuación es anterior a LogTime días desde este momento, y la ventana
-				// de ejecución ya no está activa, la actuación no se guardará.
-				if (new Duration(new DateTime(uncompletedAction.getStartDate()), DateTime.now()).getStandardDays() < logTime)
-				{
-					toStore.getExecutions().add(
-							new MedicalActionExecution(uncompletedAction.getAction(), uncompletedAction.getParameters(),
-									uncompletedAction.getPriority(), uncompletedAction.getStartDate(), uncompletedAction.getTimeWindow(),
-									uncompletedAction.getState()));
-				}
-			}
 			uncompletedActionsFile = new File(basePath + "/" + uncompletedActionsFileName);
-			serializator.serialize(toStore, uncompletedActionsFile);
+
+			// menos que su ventana de actuación aún esté activa.
+			if (list != null && list.getExecutions().size() > 0)
+			{
+				// Lista que guardaremos
+				MedicalActionExecutionList toStore = new MedicalActionExecutionList();
+
+				for (MedicalActionExecution uncompletedAction : list.getExecutions())
+				{
+					// Si el momento de inicio de la actuación es anterior a LogTime días desde este momento, y la
+					// ventana
+					// de ejecución ya no está activa, la actuación no se guardará.
+					if (new Duration(new DateTime(uncompletedAction.getStartDate()), DateTime.now()).getStandardDays() < logTime)
+					{
+						toStore.getExecutions().add(
+								new MedicalActionExecution(uncompletedAction.getAction(), uncompletedAction.getParameters(),
+										uncompletedAction.getPriority(), uncompletedAction.getStartDate(), uncompletedAction.getTimeWindow(),
+										uncompletedAction.getState()));
+					}
+				}
+				uncompletedActionsFile = new File(basePath + "/" + uncompletedActionsFileName);
+				serializator.serialize(toStore, uncompletedActionsFile);
+			} else
+			{
+				uncompletedActionsFile.delete();
+			}
 
 		} catch (Exception ex)
 		{

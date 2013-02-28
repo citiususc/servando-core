@@ -18,6 +18,7 @@ public class ServandoCommunicationsModule {
 	private final HashMap<String, CommunicableService> registeredServices;
 	private final HashMap<CommunicableService, ObjectTransporter> objectTransporters;
 
+	private boolean disabled = false;
 	/**
 	 * Singleton unique instance
 	 */
@@ -38,6 +39,19 @@ public class ServandoCommunicationsModule {
 	{
 		registeredServices = new HashMap<String, CommunicableService>();
 		objectTransporters = new HashMap<CommunicableService, ObjectTransporter>();
+		try
+		{
+			if (!StorageModule.getInstance().getSettings().isCommunicationsModuleEnabled())
+			{
+				disabled = true;
+			}
+
+			Log.d("ServandoCommunicationsModule", "Communications module is " + (disabled ? "disabled" : "enabled"));
+
+		} catch (IOException e)
+		{
+			Log.e(ObjectTransporter.class.getSimpleName(), "Error getting settings", e);
+		}
 	}
 
 	/**
@@ -59,19 +73,15 @@ public class ServandoCommunicationsModule {
 	public ObjectTransporter createObjectTransporter(URI uri, String serviceId)
 	{
 		ObjectTransporter o = null;
-		try
-		{
-			if (StorageModule.getInstance().getSettings().isCommunicationsModuleEnabled())
-			{
-				o = new ObjectTransporter(uri, serviceId);
-			} else
-			{
-				o = new NullObjectTransporter();
-			}
 
-		} catch (IOException e)
+		if (!disabled)
 		{
-			Log.e(ObjectTransporter.class.getSimpleName(), "Error creating object transporter", e);
+			Log.d("ServandoCommunicationsModule", "Creating objecttransporter for service " + serviceId);
+			o = new ObjectTransporter(uri, serviceId);
+		} else
+		{
+			Log.d("ServandoCommunicationsModule", "Creating nullobjecttransporter for service " + serviceId);
+			o = new NullObjectTransporter();
 		}
 
 		return o;
