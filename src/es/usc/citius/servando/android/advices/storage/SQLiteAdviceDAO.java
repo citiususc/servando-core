@@ -15,6 +15,10 @@ import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
 
 public class SQLiteAdviceDAO {
 
+	public interface AdviceDAOListener {
+		public void onAdviceAdded(Advice advice);
+	}
+
 	ILog logger = ServandoLoggerFactory.getLogger(SQLiteAdviceDAO.class);
 	private static final String DATA_BASE_NAME = "ADVICES_DB";
 	private static final int DATA_BASE_VERSION = 1;
@@ -23,8 +27,11 @@ public class SQLiteAdviceDAO {
 	private SQLiteDatabase database;
 	private boolean initialized = false;
 
+	private List<AdviceDAOListener> listeners;
+
 	private SQLiteAdviceDAO()
 	{
+		listeners = new ArrayList<SQLiteAdviceDAO.AdviceDAOListener>();
 
 	}
 
@@ -51,6 +58,8 @@ public class SQLiteAdviceDAO {
 			helper = new SQLiteAdviceHelper(context, DATA_BASE_NAME, null, DATA_BASE_VERSION);
 			database = helper.getWritableDatabase();
 			initialized = true;
+
+			restartDataBase();
 		}
 
 	}
@@ -226,16 +235,20 @@ public class SQLiteAdviceDAO {
 			cv.put(SQLiteAdviceHelper.SEEN_COLUMN, 0);
 		}
 		long result = database.insert(SQLiteAdviceHelper.ADVICES_TABLE_NAME, null, cv);
+
+		this.close();
+
 		if (result != -1)
 		{
 			advice.setId((int) result);
 			logger.debug("Se ha insertado: " + advice.toString());
+			fireOnAdviceAdded(advice);
 
 		} else
 		{
 			logger.debug("No se ha podido insertar: " + advice.toString());
 		}
-		this.close();
+
 		return result;
 	}
 
@@ -354,5 +367,25 @@ public class SQLiteAdviceDAO {
 
 		}
 		return result;
+	}
+
+	public void fireOnAdviceAdded(Advice a)
+	{
+		for (AdviceDAOListener l : listeners)
+		{
+			l.onAdviceAdded(a);
+		}
+	}
+
+	public void addAdviceListener(AdviceDAOListener l)
+	{
+		if (!listeners.contains(l))
+			listeners.add(l);
+	}
+
+	public void removeAdviceListener(AdviceDAOListener l)
+	{
+		if (listeners.contains(l))
+			listeners.remove(l);
 	}
 }

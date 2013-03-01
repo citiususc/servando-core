@@ -52,6 +52,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 	private List<MedicalActionExecution> pendingActions;
 	private List<MedicalActionExecution> executingActions;
 	private List<MedicalActionExecution> lockedActions;
+	private List<MedicalActionExecution> scheduledActions;
 
 	private List<MedicalActionExecution> allDayActions;
 
@@ -91,6 +92,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			engineHelper = new ProtocolEngineHelper();
 			pendingActions = new ArrayList<MedicalActionExecution>();
 			executingActions = new ArrayList<MedicalActionExecution>();
+			scheduledActions = new ArrayList<MedicalActionExecution>();
 			lockedActions = new ArrayList<MedicalActionExecution>();
 			executionsInfo = new HashMap<MedicalActionExecution, ExecutionInfo>();
 			timerMappings = new HashMap<MedicalActionExecution, TimerTask>();
@@ -179,7 +181,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 					TimerTask task = new MedicalActionStartTimerInvokedTask(execution);
 					executor.schedule(task, dueTime, TimeUnit.SECONDS);
 					timerMappings.put(execution, task);
-
+					scheduledActions.add(execution);
 					// TODO Test
 					// ============================================================ //
 					ExecutionInfo info = getInfo(execution);
@@ -431,7 +433,8 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 	{
 
 		SQLiteAdviceDAO.getInstance().add(new Advice("Servando", "A acción " + target.getAction().getDisplayName() + " caducou", new Date()));
-		SQLiteAdviceDAO.getInstance().add(new Advice(Advice.SERVANDO_SENDER_NAME, "O protocolo estase a incumplir", new Date()));
+		SQLiteAdviceDAO.getInstance().add(
+				new Advice(Advice.SERVANDO_SENDER_NAME, "O protocolo estase a incumplir", DateTime.now().plusDays(1).toDate()));
 
 		log.debug("On abort called");
 		deleteAction(target);
@@ -581,9 +584,41 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 	public List<MedicalActionExecution> getFilteredDayActions(Calendar jdkCal)
 	{
-		List<MedicalActionExecution> dayActions = getDayActions(jdkCal);
-		dayActions.removeAll(finishedActions.getExecutions());
-		return dayActions;
+
+		synchronized (engineLock)
+		{
+			ArrayList<MedicalActionExecution> all = new ArrayList<MedicalActionExecution>();
+			all.addAll(pendingActions);
+			all.addAll(executingActions);
+			all.addAll(scheduledActions);
+
+			ArrayList<MedicalActionExecution> toRemove = new ArrayList<MedicalActionExecution>();
+			for (MedicalActionExecution exec : all)
+			{
+				if (exec.getAction().getProvider().getId().equals("SERVANDO"))
+				{
+					toRemove.add(exec);
+				}
+			}
+
+			all.removeAll(toRemove);
+
+			return all;
+		}
+
+		// List<MedicalActionExecution> dayActions = getDayActions(jdkCal);
+		// dayActions.removeAll(finishedActions.getExecutions());
+		// // Eliminamos aquellas que ya han expirado
+		// List<MedicalActionExecution> toRemove = new ArrayList<MedicalActionExecution>();
+		// for (MedicalActionExecution me : dayActions)
+		// {
+		// if (new DateTime(me.getStartDate()).plusSeconds((int) me.getTimeWindow()).isBeforeNow())
+		// {
+		// toRemove.add(me);
+		// }
+		// }
+		// dayActions.removeAll(toRemove);
+		// return dayActions;
 	}
 
 	private class StartMedicalActionExecutionTask extends TimerTask {
@@ -602,7 +637,6 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			millis = System.currentTimeMillis();
 
 			log.debug("Executing acion " + execution.getAction().getId() + "( " + millis + ") ...");
-
 			// Añadimos la actuación al conjunto de actuaciones sin finalizar, si no se encontraba ya.
 			if (!uncompletedActions.getExecutions().contains(execution))
 			{
@@ -657,6 +691,11 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 				// Añadimos la actuación a la lista de actuaciones pendientes, y la guardamos en el registro de
 				// actuaciones no completadas
 				pendingActions.add(execution);
+
+				if (scheduledActions.contains(execution))
+				{
+					scheduledActions.remove(execution);
+				}
 			}
 
 			schedule();
@@ -716,6 +755,10 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 						execution.abort(ProtocolEngine.this);
 						getInfo(execution).setFinishTime(GregorianCalendar.getInstance());
 						getInfo(execution).setStatus(ExecutionInfo.EXEC_ABORTED);
+						if (scheduledActions.contains(execution))
+						{
+							scheduledActions.remove(execution);
+						}
 
 					} else if (pendingActions.contains(execution))
 					{
