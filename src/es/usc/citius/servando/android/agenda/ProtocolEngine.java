@@ -52,7 +52,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 	private List<MedicalActionExecution> pendingActions;
 	private List<MedicalActionExecution> executingActions;
 	private List<MedicalActionExecution> lockedActions;
-	private List<MedicalActionExecution> scheduledActions;
+	// private List<MedicalActionExecution> scheduledActions;
 
 	private List<MedicalActionExecution> allDayActions;
 
@@ -92,7 +92,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			engineHelper = new ProtocolEngineHelper();
 			pendingActions = new ArrayList<MedicalActionExecution>();
 			executingActions = new ArrayList<MedicalActionExecution>();
-			scheduledActions = new ArrayList<MedicalActionExecution>();
+			// scheduledActions = new ArrayList<MedicalActionExecution>();
 			lockedActions = new ArrayList<MedicalActionExecution>();
 			executionsInfo = new HashMap<MedicalActionExecution, ExecutionInfo>();
 			timerMappings = new HashMap<MedicalActionExecution, TimerTask>();
@@ -130,27 +130,19 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			// En primer lugar comprobamos que esté dentro de la ventana temporal.
 			boolean canEnter = startDate.plusSeconds((int) exec.getTimeWindow()).isAfter(now);
 
-			// Comprobamos que no tenga temporizadores activados
-			if (timerMappings.containsKey(exec))
+			if (actionHasTimers(exec))
 			{
+				log.debug("Action " + exec.getAction().getId() + " has timers");
 				canEnter = false;
+			} else
+			{
+				log.debug("Action " + exec.getAction().getId() + " has no timers");
 			}
 
 			// Ahora, comprobamos que no se encuentre en ejecución, ni bloqueada, ni pendiente.
 			canEnter &= !(executingActions.contains(exec) || lockedActions.contains(exec) || pendingActions.contains(exec));
 			// Comprobamos si la actuación aparece en el registro de actuaciones completas.
 			canEnter &= !finishedActions.getExecutions().contains(exec);
-
-			log.debug("\n\n");
-			log.debug("\n\n");
-			log.debug("\n\n");
-			for (MedicalActionExecution e : finishedActions.getExecutions())
-			{
-				log.debug("x: " + exec.toString());
-				log.debug("y: " + e.toString());
-				log.debug("Compare: " + MedicalActionExecutionComparator.getInstance().compare(exec, e));
-				log.debug("\n\n");
-			}
 
 			if (canEnter)
 			{
@@ -181,7 +173,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 					TimerTask task = new MedicalActionStartTimerInvokedTask(execution);
 					executor.schedule(task, dueTime, TimeUnit.SECONDS);
 					timerMappings.put(execution, task);
-					scheduledActions.add(execution);
+					// scheduledActions.add(execution);
 					// TODO Test
 					// ============================================================ //
 					ExecutionInfo info = getInfo(execution);
@@ -216,10 +208,29 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 				// Añadimos el objeto que usarémos como bloqueo para esta ejecución
 				locks.put(execution, new Object());
-
 			}
 		}
+		raiseOnLoadDayActions();
+
 		schedule();
+	}
+
+	private boolean actionHasTimers(MedicalActionExecution exec)
+	{
+		// Comprobamos que no tenga temporizadores activados
+		if (timerMappings.containsKey(exec))
+		{
+			return true;
+		}
+
+		// for (MedicalActionExecution e : timerMappings.keySet())
+		// {
+		// if (e.equals(exec))
+		// return true;
+		// }
+
+		return false;
+
 	}
 
 	/**
@@ -234,9 +245,16 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 		if (!started)
 		{
 			// Programamos el timer de carga diaria para las 00:00
-			Duration timeToMidnight = new Duration(DateTime.now(), new DateMidnight().plusDays(1));
-			beginDayTimerTask = new BeginDayTimerInvokedTask();
-			executor.schedule(beginDayTimerTask, timeToMidnight.getMillis(), TimeUnit.MILLISECONDS);
+			// Duration timeToMidnight = new Duration(DateTime.now(), new DateMidnight().plusDays(1));
+			//
+			// // test: recargar accions cada 2 minutos
+			// timeToMidnight = new Duration(DateTime.now(), DateTime.now().plusMinutes(1));
+			//
+			// beginDayTimerTask = new BeginDayTimerInvokedTask();
+			// executor.schedule(beginDayTimerTask, timeToMidnight.getMillis(), TimeUnit.MILLISECONDS);
+
+			updateBeginDayTimerTask();
+
 			// Obtenemos las actuaciones ya finalizadas, y las iniciadas pero no completadas
 			finishedActions = engineHelper.loadFinishedActions();
 			uncompletedActions = engineHelper.loadUncompletedActions();
@@ -492,6 +510,15 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 		}
 	}
 
+	private void raiseOnLoadDayActions()
+	{
+		log.debug("Raising medical action finish...");
+		for (ProtocolEngineListener l : protocolListeners)
+		{
+			l.onLoadDayActions();
+		}
+	}
+
 	public void addProtocolListener(ProtocolEngineListener l)
 	{
 		protocolListeners.add(l);
@@ -590,14 +617,30 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			ArrayList<MedicalActionExecution> all = new ArrayList<MedicalActionExecution>();
 			all.addAll(pendingActions);
 			all.addAll(executingActions);
-			all.addAll(scheduledActions);
+
+			for (MedicalActionExecution m : timerMappings.keySet())
+			{
+				if (timerMappings.get(m) instanceof MedicalActionStartTimerInvokedTask)
+				{
+					all.add(m);
+				}
+			}
 
 			ArrayList<MedicalActionExecution> toRemove = new ArrayList<MedicalActionExecution>();
+
 			for (MedicalActionExecution exec : all)
 			{
 				if (exec.getAction().getProvider().getId().equals("SERVANDO"))
 				{
 					toRemove.add(exec);
+				}
+			}
+
+			for (MedicalActionExecution me : all)
+			{
+				if (new DateTime(me.getStartDate()).plusSeconds((int) me.getTimeWindow()).isBeforeNow())
+				{
+					toRemove.add(me);
 				}
 			}
 
@@ -692,10 +735,10 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 				// actuaciones no completadas
 				pendingActions.add(execution);
 
-				if (scheduledActions.contains(execution))
-				{
-					scheduledActions.remove(execution);
-				}
+				// if (scheduledActions.contains(execution))
+				// {
+				// scheduledActions.remove(execution);
+				// }
 			}
 
 			schedule();
@@ -745,7 +788,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 				// está en
 				// ejecución,
 				// la abortamos.
-				if (startDate.plusSeconds((int) execution.getTimeWindow()).isAfterNow())
+				if (startDate.plusSeconds((int) execution.getTimeWindow()).isBeforeNow())
 				{
 					executor.remove(timerMappings.get(execution));
 					// Si está en ejecución, la abortamos y ejecutamos el planificador.
@@ -755,10 +798,10 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 						execution.abort(ProtocolEngine.this);
 						getInfo(execution).setFinishTime(GregorianCalendar.getInstance());
 						getInfo(execution).setStatus(ExecutionInfo.EXEC_ABORTED);
-						if (scheduledActions.contains(execution))
-						{
-							scheduledActions.remove(execution);
-						}
+						// if (scheduledActions.contains(execution))
+						// {
+						// scheduledActions.remove(execution);
+						// }
 
 					} else if (pendingActions.contains(execution))
 					{
@@ -772,7 +815,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 					long dueTime = new Duration(DateTime.now(), new DateTime(execution.getStartDate()).plusSeconds((int) execution.getTimeWindow())).getStandardSeconds();
 					log.debug("Reescheduling expiration " + dueTime + " seconds");
 					// executor.remove(timerMappings.get(execution));
-					executor.schedule(this, dueTime, TimeUnit.SECONDS);
+					executor.schedule(this, dueTime >= 0 ? dueTime : 0, TimeUnit.SECONDS);
 				}
 			}
 		}
@@ -786,10 +829,26 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 		{
 			// Invocamos al método de carga de actuaciones
 			loadDayActions();
-			// Y programamos el temporizador para las 00:00 del día siguiente.
-			Duration timeToMidnight = new Duration(DateTime.now(), new DateMidnight().plusDays(1));
-			executor.schedule(this, timeToMidnight.getMillis(), TimeUnit.MILLISECONDS);
+			updateBeginDayTimerTask();
 		}
+	}
+
+	private void updateBeginDayTimerTask()
+	{
+
+		if (beginDayTimerTask != null)
+		{
+			executor.remove(beginDayTimerTask);
+		}
+
+		// Y programamos el temporizador para las 00:00 del día siguiente.
+		Duration timeToMidnight = new Duration(DateTime.now(), new DateMidnight().plusDays(1));
+		// test: recargar accions cada 2 minutos
+		timeToMidnight = new Duration(DateTime.now(), DateTime.now().plusMinutes(1));
+		beginDayTimerTask = new BeginDayTimerInvokedTask();
+		executor.schedule(beginDayTimerTask, timeToMidnight.getMillis(), TimeUnit.MILLISECONDS);
+
+		log.debug("Updating day actions from BeginDayTimerInvokedTask");
 	}
 
 	/**
