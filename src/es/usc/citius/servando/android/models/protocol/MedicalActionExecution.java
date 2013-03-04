@@ -412,6 +412,8 @@ public class MedicalActionExecution implements AgendaEvent {
 	{
 		this.uniqueId = uniqueId;
 	}
+
+	
 	
 	
 	/// <summary>
@@ -469,5 +471,35 @@ public class MedicalActionExecution implements AgendaEvent {
          
         return equals;
     }
+
+	/**
+	 * Uses: action id, priority, startDate, timeWindow, parameters
+	 */
+	@Override
+	public int hashCode()
+	{
+		final int prime = 31;
+		int result = 1;
+		// id
+		result = prime * result + ((action == null) ? 0 : action.getId().hashCode());
+		// priority
+		result = prime * result + ((priority == null) ? 0 : priority.hashCode());
+		// startdate
+		result = prime * result + ((startDate == null) ? 0 : startDate.hashCode());
+		// timewindow
+		result = prime * result + (int) (timeWindow ^ (timeWindow >>> 32));
+		// parameters
+		if (parameters != null && parameters.size() > 0)
+		{
+			for (Parameter p : parameters.getParameters())
+			{
+				String k = p.getName();
+				String v = p.getValue();
+				result = prime * result + k.hashCode();
+				result = prime * result + v.hashCode();
+			}
+		}
+		return result;
+	}
 
 }

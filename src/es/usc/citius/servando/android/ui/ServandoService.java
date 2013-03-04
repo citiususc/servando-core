@@ -55,7 +55,7 @@ public class ServandoService extends Service {
 			isRunning = true;
 			try
 			{
-				ServandoPlatformFacade.getInstance().start(this);
+				ServandoPlatformFacade.getInstance().start(this.getApplicationContext());
 
 			} catch (Exception e)
 			{

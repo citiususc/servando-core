@@ -19,6 +19,9 @@ import es.usc.citius.servando.android.advices.storage.SQLiteAdviceDAO;
 import es.usc.citius.servando.android.agenda.ProtocolEngine;
 import es.usc.citius.servando.android.agenda.ProtocolEngineServiceBinder;
 import es.usc.citius.servando.android.agenda.ProtocolEngineServiceBinder.ProtocolEngineServiceBinderListener;
+import es.usc.citius.servando.android.alerts.AlertMgr;
+import es.usc.citius.servando.android.alerts.AlertMsg;
+import es.usc.citius.servando.android.alerts.RemoteSendingAlertHandler;
 import es.usc.citius.servando.android.communications.CommunicableService;
 import es.usc.citius.servando.android.communications.ObjectTransporter;
 import es.usc.citius.servando.android.communications.ServandoCommunicationsModule;
@@ -101,6 +104,11 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 	private Patient patient;
 
 	/**
+	 * Alert manager
+	 */
+	private AlertMgr alertMgr;
+
+	/**
 	 * PlatformFacadeListeners
 	 */
 	private List<PlatformFacadeListener> listeners;
@@ -129,6 +137,9 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 
 		serviceManager = ServiceManager.getInstance();
 		communicationsModule = ServandoCommunicationsModule.getInstance();
+
+		alertMgr = new AlertMgr();
+		alertMgr.registerHandler(new RemoteSendingAlertHandler());
 
 		medicalActionStore = new MedicalActionStore();
 
@@ -221,6 +232,17 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 	}
 
 	/**
+	 * Get the {@link ObjectTransporter} of a registered service
+	 * 
+	 * @param serviceId The service id
+	 * @return An Object Transporter ready for use
+	 */
+	// public ObjectTransporter createObjectTransporter(String id)
+	// {
+	//
+	// }
+
+	/**
 	 * Start the platform by reading the platform configuration file (settings.xml) and loading the listed services.
 	 * 
 	 * @param ctx
@@ -304,6 +326,14 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 				ctx.stopService(new Intent(ctx, ServandoService.class));
 			}
 		}
+	}
+
+	/**
+	 * Send alert
+	 */
+	public void alert(AlertMsg alert)
+	{
+		alertMgr.alert(alert);
 	}
 
 	/**
