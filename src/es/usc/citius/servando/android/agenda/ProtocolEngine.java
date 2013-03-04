@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
@@ -19,9 +18,10 @@ import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
 import android.util.Log;
-import es.usc.citius.servando.android.advices.Advice;
-import es.usc.citius.servando.android.advices.storage.SQLiteAdviceDAO;
+import es.usc.citius.servando.android.ServandoPlatformFacade;
 import es.usc.citius.servando.android.agenda.ExecutionInfo.ExecutionInfoListener;
+import es.usc.citius.servando.android.alerts.AlertMsg;
+import es.usc.citius.servando.android.alerts.AlertType;
 import es.usc.citius.servando.android.logging.ILog;
 import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
 import es.usc.citius.servando.android.models.protocol.MedicalActionExecution;
@@ -107,8 +107,30 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			finishedActions = engineHelper.loadFinishedActions();
 			uncompletedActions = engineHelper.loadUncompletedActions();
 
+			listenToProtocolFileChanges();
+
 			engineLock = new Object();
 		}
+	}
+
+	private void listenToProtocolFileChanges()
+	{
+		// FileObserver observer = new FileObserver(StorageModule.getInstance().getBasePath() + "/", FileObserver.CREATE
+		// | FileObserver.MODIFY)
+		// {
+		// @Override
+		// public void onEvent(int event, String file)
+		// {
+		// log.debug("File: " + file + ", event: " + event);
+		//
+		// if (file.endsWith("protocol.xml"))
+		// {
+		// log.debug("Protocol file changed on SDCARD");
+		// updateBeginDayTimerTask(true);
+		// }
+		// }
+		// };
+		// observer.startWatching(); // start the observer
 	}
 
 	// TODO private
@@ -253,7 +275,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			// beginDayTimerTask = new BeginDayTimerInvokedTask();
 			// executor.schedule(beginDayTimerTask, timeToMidnight.getMillis(), TimeUnit.MILLISECONDS);
 
-			updateBeginDayTimerTask();
+			updateBeginDayTimerTask(false);
 
 			// Obtenemos las actuaciones ya finalizadas, y las iniciadas pero no completadas
 			finishedActions = engineHelper.loadFinishedActions();
@@ -450,14 +472,22 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 	public void onAbort(MedicalActionExecution target)
 	{
 
-		SQLiteAdviceDAO.getInstance().add(new Advice("Servando", "A acción " + target.getAction().getDisplayName() + " caducou", new Date()));
-		SQLiteAdviceDAO.getInstance().add(
-				new Advice(Advice.SERVANDO_SENDER_NAME, "O protocolo estase a incumplir", DateTime.now().plusDays(1).toDate()));
+		// SQLiteAdviceDAO.getInstance().add(new Advice("Servando", "A acción " + target.getAction().getDisplayName() +
+		// " caducou", new Date()));
+		// SQLiteAdviceDAO.getInstance().add(
+		// new Advice(Advice.SERVANDO_SENDER_NAME, "O protocolo estase a incumplir",
+		// DateTime.now().plusDays(1).toDate()));
 
 		log.debug("On abort called");
 		deleteAction(target);
 		schedule();
 		raiseOnMedicalActionAbort(target);
+
+		AlertMsg a = new AlertMsg(AlertType.PROTOCOL_NON_COMPILANCE, "Action not done", "Action " + target.getAction().getDisplayName()
+				+ " dont done");
+
+		a.addParameter("action", target.getAction().getDisplayName());
+		ServandoPlatformFacade.getInstance().alert(a);
 	}
 
 	@Override
@@ -788,7 +818,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 				// está en
 				// ejecución,
 				// la abortamos.
-				if (startDate.plusSeconds((int) execution.getTimeWindow()).isBeforeNow())
+				if (startDate.plusSeconds((int) execution.getTimeWindow() - 5).isBeforeNow())
 				{
 					executor.remove(timerMappings.get(execution));
 					// Si está en ejecución, la abortamos y ejecutamos el planificador.
@@ -829,11 +859,11 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 		{
 			// Invocamos al método de carga de actuaciones
 			loadDayActions();
-			updateBeginDayTimerTask();
+			updateBeginDayTimerTask(false);
 		}
 	}
 
-	private void updateBeginDayTimerTask()
+	private void updateBeginDayTimerTask(boolean doItNow)
 	{
 
 		if (beginDayTimerTask != null)
@@ -843,10 +873,9 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 		// Y programamos el temporizador para las 00:00 del día siguiente.
 		Duration timeToMidnight = new Duration(DateTime.now(), new DateMidnight().plusDays(1));
-		// test: recargar accions cada 2 minutos
-		timeToMidnight = new Duration(DateTime.now(), DateTime.now().plusMinutes(1));
+
 		beginDayTimerTask = new BeginDayTimerInvokedTask();
-		executor.schedule(beginDayTimerTask, timeToMidnight.getMillis(), TimeUnit.MILLISECONDS);
+		executor.schedule(beginDayTimerTask, doItNow ? 1000 : timeToMidnight.getMillis(), TimeUnit.MILLISECONDS);
 
 		log.debug("Updating day actions from BeginDayTimerInvokedTask");
 	}
@@ -958,4 +987,5 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 						+ (abort != null ? sdf.format(abort.getTime()) : "null") + ", " + "finish: "
 						+ (finish != null ? sdf.format(finish.getTime()) : "null"));
 	}
+
 }

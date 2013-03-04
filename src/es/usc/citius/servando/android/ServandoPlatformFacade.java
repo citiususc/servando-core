@@ -21,6 +21,7 @@ import es.usc.citius.servando.android.agenda.ProtocolEngineServiceBinder;
 import es.usc.citius.servando.android.agenda.ProtocolEngineServiceBinder.ProtocolEngineServiceBinderListener;
 import es.usc.citius.servando.android.alerts.AlertMgr;
 import es.usc.citius.servando.android.alerts.AlertMsg;
+import es.usc.citius.servando.android.alerts.PatientAdviceAlertHandler;
 import es.usc.citius.servando.android.alerts.RemoteSendingAlertHandler;
 import es.usc.citius.servando.android.communications.CommunicableService;
 import es.usc.citius.servando.android.communications.ObjectTransporter;
@@ -140,6 +141,7 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 
 		alertMgr = new AlertMgr();
 		alertMgr.registerHandler(new RemoteSendingAlertHandler());
+		alertMgr.registerHandler(new PatientAdviceAlertHandler());
 
 		medicalActionStore = new MedicalActionStore();
 
@@ -505,3 +507,4 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 	}
 
 }
+

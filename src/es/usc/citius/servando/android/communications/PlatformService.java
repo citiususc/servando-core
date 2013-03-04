@@ -1,5 +1,6 @@
 package es.usc.citius.servando.android.communications;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
@@ -23,7 +24,7 @@ import es.usc.citius.servando.android.models.protocol.MedicalActionState;
 import es.usc.citius.servando.android.models.services.IPlatformService;
 import es.usc.citius.servando.android.models.util.ParameterList;
 
-public class PlatformService implements IPlatformService {
+public class PlatformService implements IPlatformService, CommunicableService {
 
 
 	private static final String id = "SERVANDO";
@@ -141,5 +142,28 @@ public class PlatformService implements IPlatformService {
 		return transporter;
 	}
 
+	@Override
+	public URI getServiceRemoteUri()
+	{
+		return null;
+	}
+
+	@Override
+	public boolean processSend(Object obj, String client)
+	{
+		return false;
+	}
+
+	@Override
+	public void processISend(Object obj, String client)
+	{
+
+	}
+
+	@Override
+	public Object processSendReceive(Object obj, String client)
+	{
+		return null;
+	}
 
 }

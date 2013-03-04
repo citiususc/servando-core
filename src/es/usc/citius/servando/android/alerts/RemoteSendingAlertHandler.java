@@ -10,16 +10,35 @@ public class RemoteSendingAlertHandler implements AlertHandler {
 	ILog log = ServandoLoggerFactory.getLogger(RemoteSendingAlertHandler.class);
 
 	@Override
-	public void onAlert(AlertMsg m)
+	public void onAlert(final AlertMsg m)
 	{
-		if (AlertType.CAREER_NOTIFICATION == m.getType())
+		if (mustSendAlert(m.getType()))
 		{
 			log.debug("Sending alert " + m.toString() + " ...");
-			PlatformService.getTransporter().send(m);
+			new Thread(new Runnable()
+			{
 
-		} else if (AlertType.PATIENT_NOTIFICATION == m.getType())
-		{
-
+				@Override
+				public void run()
+				{
+					PlatformService.getTransporter().send(m);
+					// ServandoPlatformFacade.getInstance().logSerializable(m);
+				}
+			}).start();
 		}
+
 	}
+
+	boolean mustSendAlert(AlertType t)
+	{
+		boolean mustSend = false;
+
+		mustSend |= t == AlertType.PROTOCOL_NON_COMPILANCE;
+		mustSend |= t == AlertType.BLOOD_PRESSURE_VALUE;
+		mustSend |= t == AlertType.WEIGHT_VALUE;
+
+		return mustSend;
+
+	}
+
 }

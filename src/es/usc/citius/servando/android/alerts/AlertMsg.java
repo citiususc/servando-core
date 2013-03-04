@@ -8,6 +8,27 @@ import es.usc.citius.servando.android.models.util.ParameterList;
 @Root(name = "alert")
 public class AlertMsg {
 	
+	public AlertMsg()
+	{
+	}
+
+	public AlertMsg(AlertType type, String displayName, String description, ParameterList parameters)
+	{
+		super();
+		this.type = type;
+		this.displayName = displayName;
+		this.description = description;
+		this.parameters = parameters;
+	}
+
+	public AlertMsg(AlertType type, String displayName, String description)
+	{
+		super();
+		this.type = type;
+		this.displayName = displayName;
+		this.description = description;
+	}
+
 	@Element(name = "type")
 	private AlertType type;
 	
@@ -65,6 +86,14 @@ public class AlertMsg {
 	public String toString()
 	{
 		return "AlertMsg [type=" + type + ", displayName=" + displayName + ", description=" + description + "]";
+	}
+
+	public void addParameter(String k, String value)
+	{
+		if (parameters == null)
+			parameters = new ParameterList();
+
+		parameters.put(k, value);
 	}
 
 }
