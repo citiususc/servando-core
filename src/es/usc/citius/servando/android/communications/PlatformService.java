@@ -145,7 +145,7 @@ public class PlatformService implements IPlatformService, CommunicableService {
 	@Override
 	public URI getServiceRemoteUri()
 	{
-		return null;
+		return ServandoPlatformFacade.getInstance().getSettings().getServerUri();
 	}
 
 	@Override

@@ -3,6 +3,8 @@
  */
 package es.usc.citius.servando.android.settings;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,6 +13,7 @@ import org.simpleframework.xml.ElementList;
 import org.simpleframework.xml.Root;
 import org.simpleframework.xml.Transient;
 
+import android.util.Log;
 import es.usc.citius.servando.android.models.services.ServiceReflectionInfo;
 import es.usc.citius.servando.android.util.ServandoLocaleUtils;
 
@@ -263,5 +266,17 @@ public class ServandoSettings {
 	{
 		return ROLE_DOCTOR.equalsIgnoreCase(role);
 	}
+
+	public URI getServerUri(){
+		try
+		{
+			return new URI(serverUrl);
+		} catch (URISyntaxException e)
+		{
+			Log.e("ServandoSettings", "Error parsing server URL");
+			return null;
+		}
+	}
+
 
 }
