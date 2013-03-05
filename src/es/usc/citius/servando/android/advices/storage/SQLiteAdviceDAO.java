@@ -184,7 +184,7 @@ public class SQLiteAdviceDAO {
 	 * 
 	 * @return
 	 */
-	public List<Advice> getAll()
+	public synchronized List<Advice> getAll()
 	{
 		List<Advice> list = new ArrayList<Advice>();
 		this.openToRead();
@@ -193,7 +193,7 @@ public class SQLiteAdviceDAO {
 		{
 			String sql = "select * from " + SQLiteAdviceHelper.ADVICES_TABLE_NAME;
 			cursor = doQuery(sql);
-			if (cursor.getCount() > 0)
+			if (cursor != null && cursor.getCount() > 0)
 			{
 				cursor.moveToFirst();
 				while (!cursor.isAfterLast())
@@ -216,7 +216,7 @@ public class SQLiteAdviceDAO {
 		} catch (Exception e)
 		{
 			e.printStackTrace();
-			logger.debug("Error getting not seen advices. Cause: " + e.getMessage());
+			logger.error("Error getting not seen advices. Cause: ", e);
 
 		} finally
 		{
@@ -235,7 +235,7 @@ public class SQLiteAdviceDAO {
 	 * 
 	 * @return
 	 */
-	public List<Advice> getNotSeen()
+	public synchronized List<Advice> getNotSeen()
 	{
 		List<Advice> list = new ArrayList<Advice>();
 		this.openToRead();
@@ -244,7 +244,7 @@ public class SQLiteAdviceDAO {
 		try
 		{
 			cursor = doQuery(sql);
-			if (cursor.getCount() > 0)
+			if (cursor != null && cursor.getCount() > 0)
 			{
 				cursor.moveToFirst();
 				while (!cursor.isAfterLast())
@@ -282,7 +282,7 @@ public class SQLiteAdviceDAO {
 	/**
 	 * This method delete all messagges from database
 	 */
-	public void removeAll()
+	public synchronized void removeAll()
 	{
 		this.openToWrite();
 		try
@@ -309,7 +309,7 @@ public class SQLiteAdviceDAO {
 	 * @param advice
 	 * @return The rowid for the advice, or -1 if there are some error
 	 */
-	public long add(Advice advice)
+	public synchronized long add(Advice advice)
 	{
 		long result = -1;
 		this.openToWrite();
@@ -356,7 +356,7 @@ public class SQLiteAdviceDAO {
 	 * @param id
 	 * @return Return false if some there are some problem, true in other case
 	 */
-	public boolean remove(int id)
+	public synchronized boolean remove(int id)
 	{
 		boolean result = true;
 		this.openToWrite();
@@ -407,7 +407,7 @@ public class SQLiteAdviceDAO {
 	 * 
 	 * @param adv
 	 */
-	public void markAsSeen(Advice adv)
+	public synchronized void markAsSeen(Advice adv)
 	{
 		if (adv.getSubAdvices().size() > 0)
 		{
@@ -426,7 +426,7 @@ public class SQLiteAdviceDAO {
 	 * 
 	 * @return -1 if error
 	 */
-	public int getNotSeenCount()
+	public synchronized int getNotSeenCount()
 	{
 		int result = -1;
 		Cursor cursor = null;
@@ -441,11 +441,14 @@ public class SQLiteAdviceDAO {
 							+ SQLiteAdviceHelper.SEEN_COLUMN + " = 0";
 					logger.debug(sql);
 					cursor = this.database.rawQuery(sql, new String[] {});
-					if (cursor.moveToFirst())
+					if (cursor != null)
 					{
-						result = cursor.getInt(0);
+						if (cursor.moveToFirst())
+						{
+							result = cursor.getInt(0);
+						}
+						cursor.close();
 					}
-					cursor.close();
 
 				}
 			} catch (SQLiteException ex)
