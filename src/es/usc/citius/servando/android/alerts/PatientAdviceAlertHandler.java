@@ -45,7 +45,6 @@ public class PatientAdviceAlertHandler implements AlertHandler {
 
 		Date now = DateTime.now().toGregorianCalendar().getTime();
 		Date tomorrow = new DateMidnight().plusDays(1).toGregorianCalendar().getTime();
-		
 
 		List<Advice> advices = new ArrayList<Advice>();
 

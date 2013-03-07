@@ -2,65 +2,74 @@ package es.usc.citius.servando.android.util.lastresponses;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-
-import org.simpleframework.xml.ElementMap;
-import org.simpleframework.xml.Root;
+import java.util.Map;
 
 import es.usc.citius.servando.android.logging.ILog;
 import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
+import es.usc.citius.servando.android.settings.StorageModule;
 import es.usc.citius.servando.android.xml.helpers.SimpleXMLSerializator;
 
-@Root(name = "LastAnswers")
 public class LastAnswersStore {
 
 	ILog logger = ServandoLoggerFactory.getLogger(LastAnswersStore.class);
 
 	// This file is located in the logs directory
-	public static final String DEFAULT_FILE = "alarmsresults.log";
+	private static final String DEFAULT_FILE = "lastanswers.xml";
 
-	@ElementMap(name = "responses", keyType = String.class, valueType = ResponsesWrapper.class, inline = true)
-	private HashMap<String, ResponsesWrapper> responses;
+	private static LastAnswersStore instance = new LastAnswersStore();
 
-	public LastAnswersStore()
+	private File file;
+
+	private ResponsesContainer responsesContainer;
+
+	private LastAnswersStore()
 	{
-		responses = new HashMap<String, ResponsesWrapper>();
+		responsesContainer = new ResponsesContainer();
+		file = new File(StorageModule.getInstance().getBasePath() + "/" + DEFAULT_FILE);
+		readFromFile();
+		logger.debug("CALLING CONSTRUCTOR...");
 	}
 
-	public HashMap<String, ResponsesWrapper> getResponses()
+	public static LastAnswersStore getInstance()
 	{
-		return responses;
+		return instance;
 	}
 
-	public void setResponses(HashMap<String, ResponsesWrapper> responses)
+	public synchronized void addResponses(String itemId, List<Response> responses)
 	{
-		this.responses = responses;
-	}
-
-	public void addResponse(String itemId, Response response)
-	{
-		ResponsesWrapper last = this.responses.get(itemId);
-		// Check for nulls
-		if (last == null)
+		if (responsesContainer == null)
 		{
-			last = new ResponsesWrapper();
-			this.responses.put(itemId, last);
+			return;
 		}
-
-		if (response != null && last != null && last.getResponses() != null)
+		for (Response r : responses)
 		{
-			// If the list is not full, insert the response
-			if (last.getResponses().size() < ResponsesWrapper.MAX_RESPONSES)
-			{
-				last.getResponses().add(response);
-			} else
-			// if list is full, delete the first response (the oldest) and insert at the end
-			{
-				last.getResponses().remove(0);
-				last.getResponses().add(response);
-			}
+			responsesContainer.addResponse(itemId, r);
 		}
+		writeToFile();
+	}
+
+	public synchronized void addResponses(Map<String, Response> responses)
+	{
+		if (responsesContainer == null)
+		{
+			return;
+		}
+		for (String key : responses.keySet())
+		{
+			responsesContainer.addResponse(key, responses.get(key));
+		}
+		writeToFile();
+	}
+
+	public synchronized void addResponse(String itemId, Response response)
+	{
+		if (responsesContainer == null)
+		{
+			return;
+		}
+		responsesContainer.addResponse(itemId, response);
+		writeToFile();
 	}
 
 	/**
@@ -69,20 +78,12 @@ public class LastAnswersStore {
 	 * @param itemId
 	 * @return
 	 */
-	public Response getLastResponse(String itemId)
+	public synchronized Response getLastResponse(String itemId)
 	{
 
-		if (this.responses != null)
+		if (responsesContainer != null)
 		{
-			ResponsesWrapper wrapper = this.responses.get(itemId);
-			if (wrapper != null)
-			{
-				List<Response> list = wrapper.getResponses();
-				if (list != null && list.size() > 0)
-				{
-					return list.get(list.size() - 1);
-				}
-			}
+			return responsesContainer.getLastResponse(itemId);
 		}
 		return null;
 	}
@@ -95,57 +96,44 @@ public class LastAnswersStore {
 	 * @param lasts Number os responses. Should be more than 1.
 	 * @return
 	 */
-	public List<Response> getLastResponses(String itemId, int lasts)
+	public synchronized List<Response> getLastResponses(String itemId, int lasts)
 	{
-		List<Response> toReturn = new ArrayList<Response>();
-
-		ResponsesWrapper lastResponses = this.responses.get(itemId);
-		if (lastResponses != null)
+		if (responsesContainer != null)
 		{
-			if (lastResponses.getResponses().size() <= lasts)
-			{
-				toReturn = new ArrayList<Response>(lastResponses.getResponses());
-			} else
-			// If have enough response return only the requested
-			{
-				int size = lastResponses.getResponses().size();
-				int start = size - lasts;
-				toReturn = new ArrayList<Response>(lastResponses.getResponses().subList(start, size));
-			}
-
+			return responsesContainer.getLastResponses(itemId, lasts);
 		}
-		return toReturn;
+		return new ArrayList<Response>();
 	}
 
-	public boolean readFromFile(File file)
+	private boolean readFromFile()
 	{
 		SimpleXMLSerializator serializator = new SimpleXMLSerializator();
-		LastAnswersStore readed = null;
+
 		try
 		{
-			readed = (LastAnswersStore) serializator.deserialize(file, LastAnswersStore.class);
-			this.setResponses(readed.getResponses());
+			// logger.debug("FILE: " + (file == null ? "Null" : "NOT NULL"));
+
+			responsesContainer = (ResponsesContainer) serializator.deserialize(file, ResponsesContainer.class);
 		} catch (Exception e)
 		{
-			e.printStackTrace();
-			logger.debug("It was not possible read LastAnswers from file. Exception: " + e.getMessage());
+			logger.error("It was not possible read LastAnswers from file. Exception: ", e);
 
 		}
-		if (readed != null)
+		if (responsesContainer == null)
 		{
-			this.responses = new HashMap<String, ResponsesWrapper>(readed.getResponses());
+			this.responsesContainer = new ResponsesContainer();
 			return true;
 		}
 		return false;
 	}
 
-	public boolean writeToFile(File file)
+	private synchronized boolean writeToFile()
 	{
 		SimpleXMLSerializator serializator = new SimpleXMLSerializator();
 
 		try
 		{
-			serializator.serialize(this, file);
+			serializator.serialize(this.responsesContainer, file);
 		} catch (Exception e)
 		{
 			e.printStackTrace();
