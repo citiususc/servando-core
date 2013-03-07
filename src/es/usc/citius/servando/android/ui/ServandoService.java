@@ -82,7 +82,6 @@ public class ServandoService extends Service {
 				ServandoPlatformFacade.getInstance().stop(this);
 			}
 
-			// UiUtils.showToast("ServandoService destroyed", this);
 			Log.d(DEBUG_TAG, "ServandoService destroyed");
 
 		}

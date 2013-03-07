@@ -724,6 +724,11 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			execution.start(ProtocolEngine.this);
 			getInfo(execution).setScheduledTime(GregorianCalendar.getInstance());
 			getInfo(execution).setStatus(ExecutionInfo.EXEC_RUNNING);
+
+			// if (execution.getResources().conflictWith(PlatformResources.with(Available.BLUETOOTH)))
+			// {
+			// enableBluetoothIfDisabled();
+			// }
 		}
 
 	}

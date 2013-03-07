@@ -14,6 +14,7 @@ import org.apache.log4j.Level;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.util.Log;
 import es.usc.citius.servando.android.advices.storage.SQLiteAdviceDAO;
 import es.usc.citius.servando.android.agenda.ProtocolEngine;
@@ -260,6 +261,8 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 			if (patient != null)
 			{
 				log.debug("Patient loaded: " + patient.getName());
+				SharedPreferences prefs = ctx.getSharedPreferences("servando", Context.MODE_PRIVATE);
+				prefs.edit().putString("patient_id", patient.getClinicalHistoryNumber()).commit();
 			}
 
 			Collection<IPlatformService> loadedServices = serviceManager.loadServices(ctx);
@@ -507,4 +510,5 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 	}
 
 }
+
 
