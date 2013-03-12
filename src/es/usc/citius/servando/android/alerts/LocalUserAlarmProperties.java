@@ -32,6 +32,14 @@ public class LocalUserAlarmProperties {
 		weightVariation = PROPERTY_INVALID_VALUE;
 		maxWeight = PROPERTY_INVALID_VALUE;
 
+		// Propiedades de tensión
+		minDiastolic = PROPERTY_INVALID_VALUE;
+		maxDiastolic = PROPERTY_INVALID_VALUE;
+		minSystolic = PROPERTY_INVALID_VALUE;
+		maxSystolic = PROPERTY_INVALID_VALUE;
+		minHeartRate = PROPERTY_INVALID_VALUE;
+		maxHeartRate = PROPERTY_INVALID_VALUE;
+
 	}
 
 	/**
@@ -65,8 +73,7 @@ public class LocalUserAlarmProperties {
 	private int maxWaterGlassesPerDay;
 
 	/**
-	 * This variable indicates the number of MEASUREMENTS used to evaluate the weight variation. So no dates are used to
-	 * this function.
+	 * This variable represents days
 	 */
 	@Element(name = "weightVariationInterval", required = false)
 	private int weightVariationInterval;
@@ -76,6 +83,24 @@ public class LocalUserAlarmProperties {
 
 	@Element(name = "maxWeight", required = false)
 	private float maxWeight;
+
+	@Element(name = "minDiastolic", required = false)
+	private int minDiastolic;
+
+	@Element(name = "maxDiastolic", required = false)
+	private int maxDiastolic;
+
+	@Element(name = "minSystolic", required = false)
+	private int minSystolic;
+
+	@Element(name = "maxSystolic", required = false)
+	private int maxSystolic;
+
+	@Element(name = "minHeartRate", required = false)
+	private int minHeartRate;
+
+	@Element(name = "maxHeartRate", required = false)
+	private int maxHeartRate;
 
 	// setters and getters
 
@@ -157,6 +182,66 @@ public class LocalUserAlarmProperties {
 	public void setMaxWeight(float maxWeight)
 	{
 		this.maxWeight = maxWeight;
+	}
+
+	public int getMinDiastolic()
+	{
+		return minDiastolic;
+	}
+
+	public void setMinDiastolic(int minDiastolic)
+	{
+		this.minDiastolic = minDiastolic;
+	}
+
+	public int getMaxDiastolic()
+	{
+		return maxDiastolic;
+	}
+
+	public void setMaxDiastolic(int maxDiastolic)
+	{
+		this.maxDiastolic = maxDiastolic;
+	}
+
+	public int getMinSystolic()
+	{
+		return minSystolic;
+	}
+
+	public void setMinSystolic(int minSystolic)
+	{
+		this.minSystolic = minSystolic;
+	}
+
+	public int getMaxSystolic()
+	{
+		return maxSystolic;
+	}
+
+	public void setMaxSystolic(int maxSystolic)
+	{
+		this.maxSystolic = maxSystolic;
+	}
+
+	public int getMinHeartRate()
+	{
+		return minHeartRate;
+	}
+
+	public void setMinHeartRate(int minHeartRate)
+	{
+		this.minHeartRate = minHeartRate;
+	}
+
+	public int getMaxHeartRate()
+	{
+		return maxHeartRate;
+	}
+
+	public void setMaxHeartRate(int maxHeartRate)
+	{
+		this.maxHeartRate = maxHeartRate;
 	}
 
 }
