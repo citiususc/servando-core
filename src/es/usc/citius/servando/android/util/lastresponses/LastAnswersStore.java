@@ -2,6 +2,7 @@ package es.usc.citius.servando.android.util.lastresponses;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -28,7 +29,6 @@ public class LastAnswersStore {
 		responsesContainer = new ResponsesContainer();
 		file = new File(StorageModule.getInstance().getBasePath() + "/" + DEFAULT_FILE);
 		readFromFile();
-		logger.debug("CALLING CONSTRUCTOR...");
 	}
 
 	public static LastAnswersStore getInstance()
@@ -101,6 +101,15 @@ public class LastAnswersStore {
 		if (responsesContainer != null)
 		{
 			return responsesContainer.getLastResponses(itemId, lasts);
+		}
+		return new ArrayList<Response>();
+	}
+
+	public synchronized List<Response> getResponsesAfter(String itemId, Date date)
+	{
+		if (responsesContainer != null)
+		{
+			return responsesContainer.getResponsesAfter(itemId, date);
 		}
 		return new ArrayList<Response>();
 	}
