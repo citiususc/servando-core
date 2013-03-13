@@ -40,6 +40,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 	private ILog log = ServandoLoggerFactory.getLogger(getClass());
 
+
 	private static final int EXECUTOR_CORE_POOL_SIZE = 10;
 
 	private static final int DELAY_TIME_IN_SECONDS = 0;
@@ -102,7 +103,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 			// TODO Remove this fucking shit from here
 			protocol = engineHelper.loadProtocol();
-			protocol.setStartDate(new DateTime(new DateMidnight()).toGregorianCalendar());
+			// protocol.setStartDate(new DateTime(new DateMidnight()).toGregorianCalendar());
 
 			finishedActions = engineHelper.loadFinishedActions();
 			uncompletedActions = engineHelper.loadUncompletedActions();
@@ -871,6 +872,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 	private void updateBeginDayTimerTask(boolean doItNow)
 	{
 
+		log.debug("Updating day actions...");
 		if (beginDayTimerTask != null)
 		{
 			executor.remove(beginDayTimerTask);
@@ -880,9 +882,9 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 		Duration timeToMidnight = new Duration(DateTime.now(), new DateMidnight().plusDays(1));
 
 		beginDayTimerTask = new BeginDayTimerInvokedTask();
-		executor.schedule(beginDayTimerTask, doItNow ? 1000 : timeToMidnight.getMillis(), TimeUnit.MILLISECONDS);
+		executor.schedule(beginDayTimerTask, doItNow ? 1000 : (timeToMidnight.getMillis()), TimeUnit.MILLISECONDS);
 
-		log.debug("Updating day actions from BeginDayTimerInvokedTask");
+		log.debug("Next update scheduled to within " + timeToMidnight.toStandardMinutes().getMinutes() + " minutes");
 	}
 
 	/**

@@ -21,6 +21,8 @@ import org.simpleframework.xml.stream.OutputNode;
  */
 public class DurationConverter implements Converter<Long> {
 
+
+
 	static PeriodFormatter fmt = new PeriodFormatterBuilder().appendWeeks()
 																.appendSuffix("w ")
 																.appendDays()

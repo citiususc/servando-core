@@ -22,7 +22,6 @@ public class RemoteSendingAlertHandler implements AlertHandler {
 				public void run()
 				{
 					PlatformService.getTransporter().send(m);
-					// ServandoPlatformFacade.getInstance().logSerializable(m);
 				}
 			}).start();
 		}
