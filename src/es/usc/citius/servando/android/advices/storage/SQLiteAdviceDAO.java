@@ -60,7 +60,7 @@ public class SQLiteAdviceDAO {
 			database = helper.getWritableDatabase();
 			initialized = true;
 
-			restartDataBase();
+			// restartDataBase();
 		}
 
 	}

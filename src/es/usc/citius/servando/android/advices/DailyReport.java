@@ -9,7 +9,10 @@ import java.util.List;
 import org.joda.time.DateMidnight;
 import org.joda.time.DateTime;
 
+import android.content.res.Resources;
 import android.text.format.DateFormat;
+import es.usc.citius.servando.R;
+import es.usc.citius.servando.android.ServandoPlatformFacade;
 import es.usc.citius.servando.android.advices.storage.SQLiteAdviceDAO;
 import es.usc.citius.servando.android.logging.ILog;
 import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
@@ -24,7 +27,7 @@ public class DailyReport {
 
 	ILog logger = ServandoLoggerFactory.getLogger(DailyReport.class);
 
-	private static final String OPENING_MESSAGGE = "Detectamos unha serie de problemas: \n";
+	private static final String OPENING_MESSAGGE = "Detectamos que: \n";
 
 	private static DailyReport instance;
 
@@ -97,7 +100,6 @@ public class DailyReport {
 
 		for (Advice advice : advices)
 		{
-			logger.debug("Messagge id: " + advice.getId() + " Messagge date: " + this.stringDate(advice.getDate()));
 			if (Advice.SERVANDO_SENDER_NAME.equals(advice.getSender()))
 			{
 				String date = this.stringDate(advice.getDate());
@@ -121,19 +123,36 @@ public class DailyReport {
 		// Metemos en reports los que quedan de la lista original
 		reports.addAll(advices);
 
+		// Esta variable servirános para controlar se xa incluímos a mensaxe de que non se cumpliu o protocolo
+
 		for (String key : groups.keySet())
 		{
 			List<Advice> list = groups.get(key);
 			// Si hay más de un mensaje, los juntamos todos en uno
 			if (list.size() > 1)
 			{
+				boolean nonCompilanceAdviced = false;
 				// Creamos un nuevo informe
 				Advice report = new Advice(Advice.SERVANDO_SENDER_NAME, "", new Date());
-				String msg = DailyReport.OPENING_MESSAGGE; // Ponemos el mensaje de apertura
+				Resources res = ServandoPlatformFacade.getInstance().getProtocolEngine().getResources();
+				String msg = String.format(res.getString(R.string.daily_report_openning), ServandoPlatformFacade.getInstance().getPatient().getName());
+				String noncompilanceMsg = res.getString(R.string.alert_protocol_non_compilance);
 				for (Advice adv : list)
 				{
-					msg = msg + adv.getMsg() + "\n"; // Añadimos las recomendaciones
-					report.addSubAdvice(adv); // Añadimos a la lista de 'submensajes' del informe
+					if (adv.getMsg().equals(noncompilanceMsg))
+					{
+						if (!nonCompilanceAdviced)
+						{
+							msg = msg + adv.getMsg() + "\n"; // Concatenamos
+							nonCompilanceAdviced = true;
+						}
+						report.addSubAdvice(adv); // Añadimos a la lista de 'submensajes' del informe
+					} else
+					{
+						msg = msg + adv.getMsg() + "\n"; // Añadimos las recomendaciones
+						report.addSubAdvice(adv); // Añadimos a la lista de 'submensajes' del informe
+					}
+
 				}
 				Date date = list.get(0).getDate(); // Cogemos la fecha del primero
 				// Nos quedamos sólo con el día

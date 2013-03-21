@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <resources>
-    <string name="hello">Hello World</string>
-    <string name="app_name">User Application</string>
+    <string name="app_name">App name</string>
+    <string name="hello">Hello!</string>
+    <string name="alert_action_expired">Action %1$s expired</string>
+    <string name="alert_protocol_non_compilance">You are not following the medical protocol.</string>
+     <string name="daily_report_openning">Hello %1$s,\nwe saw that:\n</string>
 </resources>

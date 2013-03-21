@@ -7,6 +7,9 @@ import java.util.List;
 import org.joda.time.DateMidnight;
 import org.joda.time.DateTime;
 
+import android.content.res.Resources;
+import es.usc.citius.servando.R;
+import es.usc.citius.servando.android.ServandoPlatformFacade;
 import es.usc.citius.servando.android.advices.Advice;
 import es.usc.citius.servando.android.advices.storage.SQLiteAdviceDAO;
 import es.usc.citius.servando.android.alerts.AlertMgr.AlertHandler;
@@ -24,9 +27,11 @@ public class PatientAdviceAlertHandler implements AlertHandler {
 		{
 			log.debug("Adding advices " + m.toString() + " ...");
 			List<Advice> advices = generateFromAlert(m);
-
 			for (Advice a : advices)
+			{
+
 				SQLiteAdviceDAO.getInstance().add(a);
+			}
 		}
 	}
 
@@ -52,14 +57,21 @@ public class PatientAdviceAlertHandler implements AlertHandler {
 
 		case PROTOCOL_NON_COMPILANCE:
 			String actionName = m.getParameters().get("action");
-			advices.add(new Advice("Servando", "A acción " + actionName + " caducou", now));
-			advices.add(new Advice(Advice.SERVANDO_SENDER_NAME, "O protocolo estase a incumplir", tomorrow));
+			Resources r = ServandoPlatformFacade.getInstance().getProtocolEngine().getResources();
+			String adviceToNow = String.format(r.getString(R.string.alert_action_expired), actionName);
+			String adviceToTomorrow = r.getString(R.string.alert_protocol_non_compilance);
+			advices.add(new Advice("Servando", adviceToNow, now));
+			advices.add(new Advice(Advice.SERVANDO_SENDER_NAME, adviceToTomorrow, tomorrow));
 			break;
-
 		case SALT_INTAKE:
-
+			advices.add(new Advice(Advice.SERVANDO_SENDER_NAME, m.getPatientMsg(), tomorrow));
 			break;
-
+		case ALCOHOL_INTAKE:
+			advices.add(new Advice(Advice.SERVANDO_SENDER_NAME, m.getPatientMsg(), tomorrow));
+			break;
+		case SMOKE_INTAKE:
+			advices.add(new Advice(Advice.SERVANDO_SENDER_NAME, m.getPatientMsg(), tomorrow));
+			break;
 		default:
 			break;
 		}
@@ -67,5 +79,4 @@ public class PatientAdviceAlertHandler implements AlertHandler {
 		return advices;
 
 	}
-
 }
