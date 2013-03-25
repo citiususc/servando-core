@@ -1,5 +1,6 @@
 package es.usc.citius.servando.android.advices;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -23,6 +24,8 @@ public class Advice implements Comparable<Advice> {
 	private Date date;
 
 	private boolean seen;
+
+	public static final String DATE_STRING_FORMAT = "dd-MM-yyyy HH:mm:ss";
 
 	/**
 	 * This attributte is only used to group advices by sender, but in the SQLite database this component doesnt exist
@@ -144,7 +147,8 @@ public class Advice implements Comparable<Advice> {
 	public String toString()
 	{
 		String toReturn;
-		toReturn = "[" + this.id + "] [" + this.sender + "] [" + this.msg + "] [" + this.date.toString() + "] [" + this.seen + "]";
+		SimpleDateFormat df = new SimpleDateFormat(DATE_STRING_FORMAT);
+		toReturn = "[" + this.id + "] [" + this.sender + "] [" + this.msg + "] [" + df.format(this.date) + "] [" + this.seen + "]";
 		return toReturn;
 	}
 

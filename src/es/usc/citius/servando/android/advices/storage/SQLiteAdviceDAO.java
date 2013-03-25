@@ -1,5 +1,7 @@
 package es.usc.citius.servando.android.advices.storage;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -19,14 +21,13 @@ public class SQLiteAdviceDAO {
 		public void onAdviceAdded(Advice advice);
 	}
 
-	ILog logger = ServandoLoggerFactory.getLogger(SQLiteAdviceDAO.class);
+	private static ILog logger = ServandoLoggerFactory.getLogger(SQLiteAdviceDAO.class);
 	private static final String DATA_BASE_NAME = "ADVICES_DB";
-	private static final int DATA_BASE_VERSION = 1;
+	private static final int DATA_BASE_VERSION = 2;
 	private static SQLiteAdviceDAO instance;
 	private SQLiteAdviceHelper helper;
 	private SQLiteDatabase database;
 	private boolean initialized = false;
-
 	private List<AdviceDAOListener> listeners;
 
 	private SQLiteAdviceDAO()
@@ -59,7 +60,6 @@ public class SQLiteAdviceDAO {
 			// Revisar esta chamada
 			database = helper.getWritableDatabase();
 			initialized = true;
-
 			// restartDataBase();
 		}
 
@@ -78,8 +78,7 @@ public class SQLiteAdviceDAO {
 			}
 		} catch (SQLiteException sqle)
 		{
-			sqle.printStackTrace();
-			logger.error("Error openning SQLite database to read. Cause: " + sqle.getMessage());
+			logger.error("Error openning SQLite database to read.", sqle);
 		}
 	}
 
@@ -96,8 +95,7 @@ public class SQLiteAdviceDAO {
 			}
 		} catch (SQLiteException sqle)
 		{
-			sqle.printStackTrace();
-			logger.error("Error openning SQLite database to write. Cause: " + sqle.getMessage());
+			logger.error("Error openning SQLite database to write.", sqle);
 		}
 	}
 
@@ -117,8 +115,7 @@ public class SQLiteAdviceDAO {
 			}
 		} catch (SQLiteException sqle)
 		{
-			sqle.printStackTrace();
-			logger.error("Error closing SQLite database. Cause: " + sqle.getMessage());
+			logger.error("Error closing SQLite database.", sqle);
 		}
 	}
 
@@ -176,7 +173,6 @@ public class SQLiteAdviceDAO {
 	private long insert(ContentValues cv)
 	{
 		return database.insert(SQLiteAdviceHelper.ADVICES_TABLE_NAME, null, cv);
-
 	}
 
 	/**
@@ -202,7 +198,7 @@ public class SQLiteAdviceDAO {
 					String sender = cursor.getString(SQLiteAdviceHelper.SENDER_COLUMN_INDEX);
 					String msg = cursor.getString(SQLiteAdviceHelper.MESSAGGE_COLUMN_INDEX);
 					String dateString = cursor.getString(SQLiteAdviceHelper.DATE_COLUMN_INDEX);
-					Date date = new Date(dateString);
+					Date date = this.dateFromString(dateString);
 					boolean seen = false;
 					if (cursor.getInt(SQLiteAdviceHelper.SEEN_COLUMN_INDEX) == 1)
 					{
@@ -215,8 +211,7 @@ public class SQLiteAdviceDAO {
 			}
 		} catch (Exception e)
 		{
-			e.printStackTrace();
-			logger.error("Error getting not seen advices. Cause: ", e);
+			logger.error("Error getting not seen advices.", e);
 
 		} finally
 		{
@@ -253,7 +248,7 @@ public class SQLiteAdviceDAO {
 					String sender = cursor.getString(SQLiteAdviceHelper.SENDER_COLUMN_INDEX);
 					String msg = cursor.getString(SQLiteAdviceHelper.MESSAGGE_COLUMN_INDEX);
 					String dateString = cursor.getString(SQLiteAdviceHelper.DATE_COLUMN_INDEX);
-					Date date = new Date(dateString);
+					Date date = this.dateFromString(dateString);
 					boolean seen = false;
 					if (cursor.getInt(SQLiteAdviceHelper.SEEN_COLUMN_INDEX) == 1)
 					{
@@ -266,8 +261,7 @@ public class SQLiteAdviceDAO {
 			}
 		} catch (Exception e)
 		{
-			e.printStackTrace();
-			logger.debug("Error getting not seen advices. Cause: " + e.getMessage());
+			logger.error("Error getting not seen advices.", e);
 		} finally
 		{
 			if (cursor != null && !cursor.isClosed())
@@ -295,7 +289,7 @@ public class SQLiteAdviceDAO {
 		} catch (Exception e)
 		{
 			e.printStackTrace();
-			logger.debug("Error removing all advices. Cause: " + e.getMessage());
+			logger.error("Error removing all advices.", e);
 		} finally
 		{
 			this.close();
@@ -318,7 +312,7 @@ public class SQLiteAdviceDAO {
 			ContentValues cv = new ContentValues();
 			cv.put(SQLiteAdviceHelper.SENDER_COLUMN, advice.getSender());
 			cv.put(SQLiteAdviceHelper.MESSAGGE_COLUMN, advice.getMsg());
-			cv.put(SQLiteAdviceHelper.DATE_COLUMN, advice.getDate().toString());
+			cv.put(SQLiteAdviceHelper.DATE_COLUMN, this.dateToString(advice.getDate()));
 			if (advice.isSeen())
 			{
 				cv.put(SQLiteAdviceHelper.SEEN_COLUMN, 1);
@@ -329,8 +323,7 @@ public class SQLiteAdviceDAO {
 			result = insert(cv);
 		} catch (Exception e)
 		{
-			e.printStackTrace();
-			logger.debug("Error adding advice in SQLite database. Cause: " + e.getMessage());
+			logger.error("Error adding advice in SQLite database", e);
 			result = -1;
 		} finally
 		{
@@ -367,7 +360,7 @@ public class SQLiteAdviceDAO {
 			executeQuery(sql);
 		} catch (SQLiteException ex)
 		{
-			logger.debug("It was not possible delete the advice with id: " + id);
+			logger.error("It was not possible delete the advice with id: " + id, ex);
 			result = false;
 		} finally
 		{
@@ -392,7 +385,7 @@ public class SQLiteAdviceDAO {
 			executeQuery(sql);
 		} catch (SQLiteException ex)
 		{
-			logger.debug("It was not possible set as seen advice with id: " + id);
+			logger.error("It was not possible set as seen advice with id: " + id, ex);
 			result = false;
 		} finally
 		{
@@ -453,8 +446,7 @@ public class SQLiteAdviceDAO {
 				}
 			} catch (SQLiteException ex)
 			{
-				ex.printStackTrace();
-				logger.debug("SQLiteException: " + ex.getMessage());
+				logger.error("Error getting not seen count.", ex);
 			} finally
 			{
 				if (cursor != null)
@@ -486,5 +478,18 @@ public class SQLiteAdviceDAO {
 	{
 		if (listeners.contains(l))
 			listeners.remove(l);
+	}
+
+	private String dateToString(Date date)
+	{
+		SimpleDateFormat df = new SimpleDateFormat(Advice.DATE_STRING_FORMAT);
+		String dateString = df.format(date);
+		return dateString;
+	}
+
+	private Date dateFromString(String string) throws ParseException
+	{
+		SimpleDateFormat df = new SimpleDateFormat(Advice.DATE_STRING_FORMAT);
+		return df.parse(string);
 	}
 }
