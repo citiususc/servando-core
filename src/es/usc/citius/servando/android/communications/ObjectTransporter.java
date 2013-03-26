@@ -20,6 +20,7 @@ import org.simpleframework.xml.core.Persister;
 import org.simpleframework.xml.stream.Format;
 
 import android.util.Log;
+import es.usc.citius.servando.android.ServandoPlatformFacade;
 import es.usc.citius.servando.android.communications.ISendTicket.TicketStatus;
 import es.usc.citius.servando.android.communications.callbacks.TransmissionFinishedCallback;
 import es.usc.citius.servando.android.communications.callbacks.TransmissionFinishedCallback.NullTransmissionFinishedCallback;
@@ -372,6 +373,8 @@ public class ObjectTransporter {
 		msg.getHeader().setService(remoteService);
 		// Establecemos la URL de destino del mensaje
 		msg.getHeader().setDestinyURL(serviceUri.toString());
+
+		msg.getHeader().setVpnClient(ServandoPlatformFacade.getInstance().getSettings().getVpnClient());
 
 		return msg;
 	}

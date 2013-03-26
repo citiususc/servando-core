@@ -12,6 +12,7 @@ import java.util.TimerTask;
 
 import org.apache.log4j.Level;
 
+import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -36,13 +37,13 @@ import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
 import es.usc.citius.servando.android.models.patients.Patient;
 import es.usc.citius.servando.android.models.protocol.MedicalAction;
 import es.usc.citius.servando.android.models.protocol.MedicalActionMgr;
-import es.usc.citius.servando.android.models.protocol.MedicalActionStore;
 import es.usc.citius.servando.android.models.services.IPlatformService;
 import es.usc.citius.servando.android.models.services.ServiceManager;
 import es.usc.citius.servando.android.models.services.StorageAvailableService;
 import es.usc.citius.servando.android.settings.ServandoSettings;
 import es.usc.citius.servando.android.settings.StorageModule;
 import es.usc.citius.servando.android.ui.ServandoService;
+import es.usc.citius.servando.android.util.BluetoothUtils;
 import es.usc.citius.servando.android.xml.helpers.SimpleXMLSerializator;
 
 /**
@@ -88,7 +89,7 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 	/**
 	 *
 	 */
-	private MedicalActionStore medicalActionStore;
+	// private MedicalActionStore medicalActionStore;
 
 	/**
 	 * Indicates whether the platform is initializad or not
@@ -144,7 +145,7 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 		alertMgr.registerHandler(new RemoteSendingAlertHandler());
 		alertMgr.registerHandler(new PatientAdviceAlertHandler());
 
-		medicalActionStore = new MedicalActionStore();
+		// medicalActionStore = new MedicalActionStore();
 
 		log.info("ServandoPlatform facade instantiated");
 	}
@@ -195,7 +196,7 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 
 			try
 			{	// add service actions
-				medicalActionStore.addServiceActions(service);
+			// medicalActionStore.addServiceActions(service);
 			} catch (Exception e)
 			{
 				log.error("An error ocurred while loading " + service.getId() + " actions.", e);
@@ -300,6 +301,11 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 
 			SystemStatusMonitor.getInstance().updateStatus(ctx);
 			log.info(SystemStatusMonitor.getInstance().toString());
+
+			if (BluetoothUtils.getInstance().getAdapter() == null)
+			{
+				BluetoothUtils.getInstance().setAdapter(BluetoothAdapter.getDefaultAdapter());
+			}
 
 			started = true;
 		}
@@ -508,6 +514,7 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 	public interface PlatformFacadeListener {
 		void onReady();
 	}
+
 
 }
 

@@ -98,6 +98,11 @@ public abstract class ServiceFragmentView extends Fragment {
 	protected void completeExecutionAndFinish()
 	{
 		completeExecution();
+		closeFragmentView();
+	}
+
+	protected void closeFragmentView()
+	{
 		Intent i = new Intent();
 		i.setClassName(APPLICATION_PACKAGE, HOME_ACTIVITY);
 		i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -106,7 +111,6 @@ public abstract class ServiceFragmentView extends Fragment {
 		{
 			i.putExtra("removing", execution.getUniqueId());
 		}
-
 		getActivity().startActivity(i);
 		onCloseView();
 	}

@@ -35,6 +35,8 @@ public class RemoteSendingAlertHandler implements AlertHandler {
 		mustSend |= t == AlertType.PROTOCOL_NON_COMPILANCE;
 		mustSend |= t == AlertType.BLOOD_PRESSURE_VALUE;
 		mustSend |= t == AlertType.WEIGHT_VALUE;
+		mustSend |= t == AlertType.SYMPTOM;
+		mustSend |= t == AlertType.SMOKE_INTAKE;
 
 		return mustSend;
 

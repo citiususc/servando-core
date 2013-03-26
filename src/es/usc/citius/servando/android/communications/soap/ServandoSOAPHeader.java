@@ -18,6 +18,26 @@ public class ServandoSOAPHeader {
 	/**
 	 * Contiene el patrón de intercambio a utilizar en la transmisión (Send, ISend, o SendReceive).
 	 */
+	@Element(name = "vpnClient", required = false)
+	@Namespace(reference = ServandoSOAPConstants.WS_ADDRESSING_NAMESPACE)
+	private String vpnClient;
+
+	public String getVpnClient()
+	{
+		return vpnClient;
+	}
+
+	public void setVpnClient(String user)
+	{
+		this.vpnClient = user;
+	}
+
+	/**
+	 * Contiene el nombre del servicio destinatario del mensaje
+	 */
+	/**
+	 * Contiene el patrón de intercambio a utilizar en la transmisión (Send, ISend, o SendReceive).
+	 */
 	@Element(name = "Action", required = false)
 	@Namespace(reference = ServandoSOAPConstants.WS_ADDRESSING_NAMESPACE)
 	private String action;

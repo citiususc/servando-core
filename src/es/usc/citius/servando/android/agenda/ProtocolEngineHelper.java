@@ -1,6 +1,7 @@
 package es.usc.citius.servando.android.agenda;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -352,9 +353,14 @@ public class ProtocolEngineHelper {
 		try
 		{
 			list = (MedicalActionExecutionList) serializator.deserialize(finishedActionsFile, MedicalActionExecutionList.class);
-		} catch (Exception ex)
+		} catch (FileNotFoundException e)
 		{
-			log.error("No se ha podido guardar el protocolo de seguimiento", ex);
+			log.debug("No se ha encontrado el fichero de acciones finalizadas [" + finishedActionsFile.getAbsolutePath() + "]");
+			list = new MedicalActionExecutionList();
+
+		} catch (Exception e)
+		{
+			log.error("Se ha producido un error cargando las actuaciones finalizadas", e);
 			list = new MedicalActionExecutionList();
 		}
 		return list;

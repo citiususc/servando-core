@@ -53,6 +53,19 @@ public class ServandoSettings {
 	@Element(name = "role", required = false)
 	private String role = ROLE_PATIENT;
 
+	@Element(name = "vpnClient", required = false)
+	private String vpnClient = "";
+
+	public String getVpnClient()
+	{
+		return vpnClient;
+	}
+
+	public void setVpnClient(String vpnClient)
+	{
+		this.vpnClient = vpnClient;
+	}
+
 	/**
 	 * Indicates whether to enables the httpServer on the device
 	 */

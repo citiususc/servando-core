@@ -37,4 +37,19 @@ public abstract class ProtocolEngineService extends Service {
 
 	public abstract ProtocolEngine getProtocolEngine();
 
+	@Override
+	public void onLowMemory()
+	{
+		super.onLowMemory();
+		log.debug("ProtocolEngineService onLowMemory");
+	}
+
+	@Override
+	public void onDestroy()
+	{
+		super.onDestroy();
+		log.debug("ProtocolEngineService destroyed");
+
+	}
+
 }
