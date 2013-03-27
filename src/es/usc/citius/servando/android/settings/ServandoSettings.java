@@ -56,16 +56,6 @@ public class ServandoSettings {
 	@Element(name = "vpnClient", required = false)
 	private String vpnClient = "";
 
-	public String getVpnClient()
-	{
-		return vpnClient;
-	}
-
-	public void setVpnClient(String vpnClient)
-	{
-		this.vpnClient = vpnClient;
-	}
-
 	/**
 	 * Indicates whether to enables the httpServer on the device
 	 */
@@ -77,6 +67,23 @@ public class ServandoSettings {
 	 */
 	@Element(name = "communicationsModuleEnabled", required = false)
 	private boolean communicationsModuleEnabled = true;
+
+	/**
+	 * Indicates whether to enables the httpServer on the device
+	 */
+	@Element(name = "actionRemindersEnabled", required = false)
+	private boolean actionRemindersEnabled = true;
+
+	public boolean isActionRemindersEnabled()
+	{
+		return actionRemindersEnabled;
+	}
+
+	public void setActionRemindersEnabled(boolean actionRemindersEnabled)
+	{
+		this.actionRemindersEnabled = actionRemindersEnabled;
+	}
+
 	/**
 	 * List of available services
 	 */
@@ -278,6 +285,16 @@ public class ServandoSettings {
 	public boolean isDoctor()
 	{
 		return ROLE_DOCTOR.equalsIgnoreCase(role);
+	}
+
+	public String getVpnClient()
+	{
+		return vpnClient;
+	}
+
+	public void setVpnClient(String vpnClient)
+	{
+		this.vpnClient = vpnClient;
 	}
 
 	public URI getServerUri(){

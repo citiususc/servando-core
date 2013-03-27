@@ -6,7 +6,6 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.Vibrator;
@@ -188,12 +187,12 @@ public class ServandoService extends Service {
 			// Vibrate for 300 milliseconds
 			v.vibrate(new long[] { 100, 50, 100, 50, 100, 50, 100 }, -1);
 			String path = StorageModule.getInstance().getBasePath() + "/sound.ogg";
-			n.sound = Uri.parse(path);
+			// n.sound = Uri.parse(path);
+			// SoundHelper.playSound(ctx, SoundHelper.SOUND_ACTION_READY);
 		}
-
 		// Show notification
 		((NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE)).notify(SERVANDO_ID, n);
-
+		// play sound
 		lastNotificationTime = System.currentTimeMillis();
 	}
 

@@ -19,6 +19,8 @@ public class SQLiteAdviceDAO {
 
 	public interface AdviceDAOListener {
 		public void onAdviceAdded(Advice advice);
+
+		public void onAdviceSeen(Advice advice);
 	}
 
 	private static ILog logger = ServandoLoggerFactory.getLogger(SQLiteAdviceDAO.class);
@@ -412,6 +414,8 @@ public class SQLiteAdviceDAO {
 		{
 			this.markAsSeen(adv.getId());
 		}
+		fireOnAdviceSeen(adv);
+
 	}
 
 	/**
@@ -465,6 +469,14 @@ public class SQLiteAdviceDAO {
 		for (AdviceDAOListener l : listeners)
 		{
 			l.onAdviceAdded(a);
+		}
+	}
+
+	public void fireOnAdviceSeen(Advice a)
+	{
+		for (AdviceDAOListener l : listeners)
+		{
+			l.onAdviceSeen(a);
 		}
 	}
 
