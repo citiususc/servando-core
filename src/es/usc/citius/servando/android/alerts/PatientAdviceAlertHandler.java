@@ -41,6 +41,7 @@ public class PatientAdviceAlertHandler implements AlertHandler {
 		mustSend |= t == AlertType.PROTOCOL_NON_COMPILANCE;
 		mustSend |= t == AlertType.ALCOHOL_INTAKE;
 		mustSend |= t == AlertType.SALT_INTAKE;
+		mustSend |= t == AlertType.WEIGHT_VALUE;
 		mustSend |= t == AlertType.SMOKE_INTAKE;
 		return mustSend;
 	}
