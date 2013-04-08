@@ -1,8 +1,18 @@
 package es.usc.citius.servando.android.agenda;
 
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -25,6 +35,7 @@ import es.usc.citius.servando.android.models.protocol.MedicalActionExecutionList
 import es.usc.citius.servando.android.models.protocol.MedicalProtocol;
 import es.usc.citius.servando.android.models.protocol.ProtocolAction;
 import es.usc.citius.servando.android.models.services.IPlatformService;
+import es.usc.citius.servando.android.settings.ServandoStartConfig;
 import es.usc.citius.servando.android.settings.StorageModule;
 import es.usc.citius.servando.android.xml.helpers.SimpleXMLSerializator;
 
@@ -33,6 +44,8 @@ public class ProtocolEngineHelper {
 	private ILog log = ServandoLoggerFactory.getLogger(getClass());
 
 	static Long MAX_DURATION_IN_SECONDS = (long) (5 * 365 * 24 * 3600); // 5 year
+
+	private static boolean PROTOCOL_UPDATES_ENABLED = true;
 
 	private SimpleXMLSerializator serializator;
 
@@ -51,6 +64,8 @@ public class ProtocolEngineHelper {
 	private int uniqueId = 100;
 
 	DateTimeFormatter fmt = DateTimeFormat.forPattern("HH:mm:ss, dd/MM");
+
+	private Object lock = new Object();
 
 	public ProtocolEngineHelper()
 	{
@@ -135,6 +150,23 @@ public class ProtocolEngineHelper {
 	 */
 	public List<MedicalActionExecution> getDayActions(Calendar jdkCal)
 	{
+
+		if (PROTOCOL_UPDATES_ENABLED)
+		{
+			checkForProtocolUpdates();
+
+			synchronized (lock)
+			{
+				try
+				{
+					lock.wait();
+				} catch (InterruptedException e)
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
 
 		DateTime date = new DateTime(jdkCal);
 		DateTime protocolStart = new DateTime(protocol.getStartDate());
@@ -501,9 +533,102 @@ public class ProtocolEngineHelper {
 
 	}
 
+	void checkForProtocolUpdates()
+	{
+		new Thread(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				URL url = null;
+				File tmpProtocolFile = null;
+				try
+				{
+					String urlStr = ServandoStartConfig.getInstance()
+														.get(ServandoStartConfig.PROTOCOL_UPDATE_URL)
+														.replaceAll("%PATIENT_ID%", ServandoPlatformFacade.getInstance().getSettings().getVpnClient());
+
+					tmpProtocolFile = File.createTempFile("protocol", "xml");
+					url = new URL(urlStr);
+
+					URLConnection connection = url.openConnection();
+					connection.setConnectTimeout(4000);
+					connection.connect();
+					// download the file
+					InputStream input = new BufferedInputStream(url.openStream());
+					OutputStream output = new FileOutputStream(tmpProtocolFile);
+
+					byte data[] = new byte[1024];
+					int count;
+
+					while ((count = input.read(data)) != -1)
+					{
+						output.write(data, 0, count);
+					}
+
+					output.flush();
+					output.close();
+					input.close();
+
+					log.debug("Protocol: " + getStringFromFile(tmpProtocolFile));
+
+					SimpleXMLSerializator s = new SimpleXMLSerializator();
+					MedicalProtocol tmpProtocol = (MedicalProtocol) s.deserialize(tmpProtocolFile, MedicalProtocol.class);
+
+					if (tmpProtocol.getVersion() > protocol.getVersion())
+					{
+						protocol = tmpProtocol;
+						saveProtocol(tmpProtocol);
+						loadProtocol();
+
+
+					}
+
+				} catch (Exception e)
+				{
+					log.error("Error in checkforupdates action", e);
+				} finally
+				{
+					synchronized (lock)
+					{
+						lock.notify();
+					}
+				}
+			}
+		}).start();
+
+	}
+
 	void log(String str)
 	{
 		Log.i("ProtocolEngineHelper", str);
+	}
+
+	private String getStringFromFile(File f)
+	{
+		FileInputStream stream = null;
+		try
+		{
+			stream = new FileInputStream(f);
+			FileChannel fc = stream.getChannel();
+			MappedByteBuffer bb = fc.map(FileChannel.MapMode.READ_ONLY, 0, fc.size());
+			return Charset.defaultCharset().decode(bb).toString();
+		} catch (Exception e)
+		{
+			// TODO: handle exception
+
+		} finally
+		{
+			try
+			{
+				stream.close();
+			} catch (IOException e)
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return "";
 	}
 
 }

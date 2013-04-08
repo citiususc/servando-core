@@ -20,8 +20,8 @@ import android.widget.TextView;
 public class CustomDigitalClock extends TextView {
 
 	Calendar mCalendar;
-	private final static String m12 = "k:mm";
-	private final static String m24 = "k:mm";
+	private final static String m12 = "kk:mm";
+	private final static String m24 = "kk:mm";
 
 	private FormatChangeObserver mFormatChangeObserver;
 

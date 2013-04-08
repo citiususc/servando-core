@@ -31,6 +31,9 @@ import es.usc.citius.servando.android.xml.converters.GregorianCalendarConverter;
 @Order(elements = { "startDate", "name", "description", "patient" })
 public class MedicalProtocol {
 
+	@Element(name = "version", required = false)
+	private int version = 0;
+
 	/**
 	 * Nombre del protocolo. Sirve como identificador del mismo.
 	 */
@@ -159,4 +162,15 @@ public class MedicalProtocol {
 	{
 		this.patient = patient;
 	}
+
+	public int getVersion()
+	{
+		return version;
+	}
+
+	public void setVersion(int version)
+	{
+		this.version = version;
+	}
+
 }

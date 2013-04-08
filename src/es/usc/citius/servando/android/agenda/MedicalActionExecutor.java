@@ -3,7 +3,7 @@ package es.usc.citius.servando.android.agenda;
 import android.content.Context;
 import es.usc.citius.servando.android.ServandoPlatformFacade;
 import es.usc.citius.servando.android.models.protocol.MedicalActionExecution;
-import es.usc.citius.servando.android.ui.ServandoService;
+import es.usc.citius.servando.android.sound.SoundHelper;
 
 public class MedicalActionExecutor {
 	//
@@ -148,15 +148,17 @@ public class MedicalActionExecutor {
 
 	public static void startExecution(MedicalActionExecution e, Context ctx)
 	{
-		ServandoService.updateServandoNotification(ctx, true, true, "");
+		// ServandoService.updateServandoNotification(ctx, true, true, "");
+		ServandoPlatformFacade.getInstance().requireUserAtention(ctx, SoundHelper.sounds.get(SoundHelper.SOUND_ACTION_READY));
 	}
 
 	public static void abortOrFinish(MedicalActionExecution e, Context ctx)
 	{
-		if (ServandoPlatformFacade.getInstance().getProtocolEngine().getAdvisedActions().getExecutions().size() == 0)
-		{
-			ServandoService.updateServandoNotification(ctx, false, false, "");
-		}
+		ServandoPlatformFacade.getInstance().requireUserAtention(ctx);
+		// if (ServandoPlatformFacade.getInstance().getProtocolEngine().getAdvisedActions().getExecutions().size() == 0)
+		// {
+		// ServandoService.updateServandoNotification(ctx, false, false, "");
+		// }
 	}
 
 }

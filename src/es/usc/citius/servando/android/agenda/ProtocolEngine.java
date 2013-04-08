@@ -8,10 +8,11 @@ import java.util.Collections;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.joda.time.DateMidnight;
@@ -21,7 +22,12 @@ import org.joda.time.Interval;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
 import android.util.Log;
+import android.util.SparseArray;
 import es.usc.citius.servando.android.ServandoPlatformFacade;
 import es.usc.citius.servando.android.agenda.ExecutionInfo.ExecutionInfoListener;
 import es.usc.citius.servando.android.alerts.AlertMsg;
@@ -35,31 +41,31 @@ import es.usc.citius.servando.android.models.protocol.MedicalProtocol;
 import es.usc.citius.servando.android.models.protocol.ProtocolAction;
 import es.usc.citius.servando.android.models.services.IPlatformService;
 import es.usc.citius.servando.android.sound.SoundHelper;
+import es.usc.citius.servando.android.util.AlarmReceiver;
 
 /**
  * 
  * @author Ángel Piñeiro
  * 
  */
-public class ProtocolEngine extends ProtocolEngineService implements MedicalActionExecutionListener, ExecutionInfoListener {
+public class ProtocolEngine implements MedicalActionExecutionListener, ExecutionInfoListener {
 
 	private ILog log = ServandoLoggerFactory.getLogger(getClass());
 
-	private static final int EXECUTOR_CORE_POOL_SIZE = 10;
+	private static ProtocolEngine instance;
+
+	private static final int EXECUTOR_CORE_POOL_SIZE = 50;
 
 	private static final int DELAY_TIME_IN_SECONDS = 0;
 
 	private boolean started = false;
 
-	private SimpleDateFormat sdf = new SimpleDateFormat("dd/MM, HH:mm:ss");
+	private SimpleDateFormat sdf = new SimpleDateFormat("dd/MM, HH:mm:ss", Locale.ENGLISH);
 	private ProtocolEngineHelper engineHelper;
 
 	private List<MedicalActionExecution> pendingActions;
 	private List<MedicalActionExecution> executingActions;
 	private List<MedicalActionExecution> lockedActions;
-	// private List<MedicalActionExecution> scheduledActions;
-
-	private List<MedicalActionExecution> allDayActions;
 
 	private Map<MedicalActionExecution, ExecutionInfo> executionsInfo;
 
@@ -68,7 +74,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 	private MedicalProtocol protocol;
 
-	private ScheduledThreadPoolExecutor executor;
+	// private ScheduledThreadPoolExecutor actionScheduler;
 
 	private BeginDayTimerInvokedTask beginDayTimerTask;
 
@@ -78,7 +84,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 	private HashMap<MedicalActionExecution, Object> locks;
 
-	private Object engineLock;
+	private static Object engineLock = new Object();
 
 	// Auto finish actions in 20 seconds
 	private boolean autoFinishActions = false;
@@ -89,6 +95,22 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 	DateTimeFormatter fmt = DateTimeFormat.forPattern("HH:mm:ss, dd/MM");
 
+	// private ServandoBackgroundService getService();
+
+	private boolean isFirstBeep = true;
+
+	public static ProtocolEngine getInstance()
+	{
+		synchronized (engineLock)
+		{
+			if (instance == null)
+			{
+				instance = new ProtocolEngine();
+			}
+		}
+		return instance;
+	}
+
 	public ProtocolEngine()
 	{
 		inititialize();
@@ -96,36 +118,26 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 	private void inititialize()
 	{
+		started = false;
+		engineHelper = new ProtocolEngineHelper();
+		pendingActions = new ArrayList<MedicalActionExecution>();
+		executingActions = new ArrayList<MedicalActionExecution>();
+		// scheduledActions = new ArrayList<MedicalActionExecution>();
+		lockedActions = new ArrayList<MedicalActionExecution>();
+		executionsInfo = new HashMap<MedicalActionExecution, ExecutionInfo>();
+		timerMappings = new HashMap<MedicalActionExecution, TimerTask>();
 
-		if (!started)
-		{
-			started = false;
-			engineHelper = new ProtocolEngineHelper();
-			pendingActions = new ArrayList<MedicalActionExecution>();
-			executingActions = new ArrayList<MedicalActionExecution>();
-			// scheduledActions = new ArrayList<MedicalActionExecution>();
-			lockedActions = new ArrayList<MedicalActionExecution>();
-			executionsInfo = new HashMap<MedicalActionExecution, ExecutionInfo>();
-			timerMappings = new HashMap<MedicalActionExecution, TimerTask>();
+		// actionScheduler = new ScheduledThreadPoolExecutor(EXECUTOR_CORE_POOL_SIZE);
+		// actionScheduler.setKeepAliveTime(25 * 60 * 60, TimeUnit.SECONDS); // 24 horas + margen acojone
 
-			executor = new ScheduledThreadPoolExecutor(EXECUTOR_CORE_POOL_SIZE);
-			executor.setKeepAliveTime(25 * 60 * 60, TimeUnit.SECONDS); // 24 horas + margen acojone
+		protocolListeners = new ArrayList<ProtocolEngineListener>();
+		locks = new HashMap<MedicalActionExecution, Object>();
+		futures = new ArrayList<ScheduledFuture<?>>();
+		protocol = engineHelper.loadProtocol();
+		finishedActions = engineHelper.loadFinishedActions();
+		uncompletedActions = engineHelper.loadUncompletedActions();
+		listenToProtocolFileChanges();
 
-			protocolListeners = new ArrayList<ProtocolEngineListener>();
-			locks = new HashMap<MedicalActionExecution, Object>();
-
-			futures = new ArrayList<ScheduledFuture<?>>();
-			// TODO Remove this fucking shit from here
-			protocol = engineHelper.loadProtocol();
-			// protocol.setStartDate(new DateTime(new DateMidnight()).toGregorianCalendar());
-
-			finishedActions = engineHelper.loadFinishedActions();
-			uncompletedActions = engineHelper.loadUncompletedActions();
-
-			listenToProtocolFileChanges();
-
-			engineLock = new Object();
-		}
 	}
 
 	private void listenToProtocolFileChanges()
@@ -218,7 +230,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 					long dueTime = new Duration(DateTime.now(), startDate).getStandardSeconds();
 					TimerTask task = new MedicalActionStartTimerInvokedTask(execution);
 					// executor.schedule(task, dueTime, TimeUnit.SECONDS);
-					scheduleTask(task, dueTime, TimeUnit.SECONDS);
+					scheduleTask(task, dueTime);
 					timerMappings.put(execution, task);
 					// scheduledActions.add(execution);
 					// TODO Test
@@ -239,7 +251,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 					TimerTask task = new MedicalActionExpiredTimerInvokedTask(execution);
 					// executor.schedule(task, dueTime, TimeUnit.SECONDS);
-					scheduleTask(task, dueTime, TimeUnit.SECONDS);
+					scheduleTask(task, dueTime);
 					timerMappings.put(execution, task);
 
 					log.debug("Action " + execution.getAction().getId() + " expiration sucssesfully scheduled to execute in " + dueTime + " seconds");
@@ -263,114 +275,155 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 		schedule();
 	}
 
-	private void scheduleTask(TimerTask task, long delay, TimeUnit timeUnit)
+	private void scheduleTask(TimerTask task, long delayInSeconds)
 	{
-		ScheduledFuture<?> future = executor.schedule(task, delay, timeUnit);
-		futures.add(future);
+		// ScheduledFuture<?> future = actionScheduler.schedule(task, delay, timeUnit);
+		// futures.add(future);
+		// scheduleNextWakeUp();
+
+		scheduleTaskImproved(task, (int) delayInSeconds);
+	}
+
+	private void scheduleNextWakeUp()
+	{
+		ArrayList<ScheduledFuture<?>> done = new ArrayList<ScheduledFuture<?>>();
+
+		long minDelay = Long.MAX_VALUE;
+
+		for (ScheduledFuture<?> f : futures)
+		{
+
+			if (f.isDone())
+			{
+				log.debug("\tDone task " + f.getClass().getSimpleName() + " will be executed in " + f.getDelay(TimeUnit.SECONDS) + " seconds");
+				done.add(f);
+			} else if (f.getDelay(TimeUnit.SECONDS) > 0)
+			{
+				log.debug("\tTask " + f.getClass().getSimpleName() + " will be executed in " + f.getDelay(TimeUnit.SECONDS) + " seconds");
+				// task remaining delay
+				long delay = f.getDelay(TimeUnit.SECONDS);
+
+				if (delay < minDelay)
+				{
+					minDelay = delay;
+				}
+			}
+		}
+
+		log.debug("Min delay: " + minDelay);
+		// remove futures of all completed tasks
+		futures.removeAll(done);
+		// schedule wake up if min delay is bigger than a minute
+		if (minDelay > 60)
+		{
+			// 10 seconds before
+			// getService().scheduleNextWakeUpIn((int) minDelay - 10);
+		} else
+		{
+			acquireWakeLock();
+		}
+
 	}
 
 	private void cancelTask(TimerTask task)
 	{
 		task.cancel();
-		executor.remove(task);
-
-	}
-
-	private class LogScheduledTasksRemainingDelay extends TimerTask {
-
-		@Override
-		public void run()
-		{
-			log.debug("Time: " + DateTime.now().toString(fmt));
-			log.debug(executor.getCompletedTaskCount() + " completed tasks.");
-			log.debug(executor.getQueue().size() + " tasks queued.");
-			log.debug(executor.getPoolSize() + " threads occupied.");
-			log.debug(executor.getLargestPoolSize() + " largest pool size.");
-
-			log.debug("Details:");
-			for (ScheduledFuture<?> f : futures)
-			{
-				if (!f.isDone())
-					log.debug("\tTask " + f.getClass().getSimpleName() + " will be executed in " + f.getDelay(TimeUnit.SECONDS) + " seconds");
-			}
-		}
+		scheduledTasks.remove(task.hashCode());
+		// scheduleNextWakeUp();
 	}
 
 	private class CheckPendingActionsAndBeepTask extends TimerTask {
 
+		private void reminder(long minutes)
+		{
+			// if (isFirstBeep && minutes < 30)
+			// {
+			// // fisrst beep
+			// isFirstBeep = false;
+			// return;
+			// }
+
+			raiseOnReminderEvent(minutes);
+		}
+
 		@Override
 		public void run()
 		{
-			synchronized (engineLock)
+
+			MedicalActionExecutionList actions = getAdvisedActions();
+
+			if (actions.getExecutions().size() > 0)
 			{
-				MedicalActionExecutionList actions = getAdvisedActions();
+				DateTime closestFinish = new DateMidnight().toDateTime().plusDays(1);
 
-				if (actions.getExecutions().size() > 0)
+				for (int i = 0; i < actions.getExecutions().size(); i++)
 				{
-					DateTime closestFinish = new DateMidnight().toDateTime().plusDays(1);
+					MedicalActionExecution exec = actions.getExecutions().get(i);
 
-					for (int i = 0; i < actions.getExecutions().size(); i++)
+					DateTime currentFinish = new DateTime(exec.getStartDate()).plusSeconds((int) exec.getTimeWindow());
+					if (currentFinish.isBefore(closestFinish))
 					{
-
-						MedicalActionExecution exec = actions.getExecutions().get(i);
-
-						DateTime currentFinish = new DateTime(exec.getStartDate()).plusSeconds((int) exec.getTimeWindow());
-						if (currentFinish.isBefore(closestFinish))
-						{
-							closestFinish = currentFinish;
-						}
+						closestFinish = currentFinish;
 					}
+				}
 
-					Duration duration = new Duration(DateTime.now(), closestFinish);
+				DateTime now = DateTime.now();
+				Duration duration = new Duration(now, closestFinish.plusMinutes(1));
+				long minutes = duration.getStandardSeconds() / 60;
 
-					long minutes = duration.getStandardMinutes();
+				long when = 0;
 
-					long when = 0;
+				if (minutes > 30)
+				{
+					// set next timer
+					when = new Interval(now, closestFinish.minusMinutes(30)).toDuration().getStandardSeconds();
+				} else if (minutes <= 30 && minutes > 25)
+				{
+					// play sound and schedule to within 25 minutes
+					reminder(minutes);
+					when = new Interval(now, closestFinish.minusMinutes(25)).toDuration().getStandardSeconds();
+				} else if (minutes <= 25 && minutes > 20)
+				{
+					// play sound and schedule to within 20 minutes
+					reminder(minutes);
+					when = new Interval(now, closestFinish.minusMinutes(20)).toDuration().getStandardSeconds();
+				} else if (minutes <= 20 && minutes > 15)
+				{
 
-					if (minutes > 30)
-					{
-						// set next timer
-						when = new Interval(DateTime.now(), closestFinish.minusMinutes(30)).toDuration().getStandardSeconds();
-					} else if (minutes <= 30 && minutes > 25)
-					{
-						// play sound and schedule to within 25 minutes
-						SoundHelper.playSound(getApplicationContext(), SoundHelper.SOUND_ACTION_REMINDER);
-						when = new Interval(DateTime.now(), closestFinish.minusMinutes(25)).toDuration().getStandardSeconds();
-					} else if (minutes <= 25 && minutes > 20)
-					{
-						// play sound and schedule to within 20 minutes
-						SoundHelper.playSound(getApplicationContext(), SoundHelper.SOUND_ACTION_REMINDER);
-						when = new Interval(DateTime.now(), closestFinish.minusMinutes(20)).toDuration().getStandardSeconds();
-					} else if (minutes <= 20 && minutes > 15)
-					{
-
-						// play sound and schedule to within 15 minutes
-						SoundHelper.playSound(getApplicationContext(), SoundHelper.SOUND_ACTION_REMINDER);
-						when = new Interval(DateTime.now(), closestFinish.minusMinutes(15)).toDuration().getStandardSeconds();
-					} else if (minutes <= 15 && minutes > 10)
-					{
-						// play sound and schedule to within 10 minutes
-						SoundHelper.playSound(getApplicationContext(), SoundHelper.SOUND_ACTION_REMINDER);
-						when = new Interval(DateTime.now(), closestFinish.minusMinutes(10)).toDuration().getStandardSeconds();
-					} else
-					{
-						// play sound and schedule to within 1 minute
-						SoundHelper.playSound(getApplicationContext(), SoundHelper.SOUND_ACTION_REMINDER);
-						when = 60;
-					}
-
-					beepTask = new CheckPendingActionsAndBeepTask();
-					scheduleTask(beepTask, when, TimeUnit.SECONDS);
-
+					// play sound and schedule to within 15 minutes
+					reminder(minutes);
+					when = new Interval(now, closestFinish.minusMinutes(15)).toDuration().getStandardSeconds();
+				} else if (minutes <= 15 && minutes > 10)
+				{
+					// play sound and schedule to within 10 minutes
+					reminder(minutes);
+					when = new Interval(now, closestFinish.minusMinutes(10)).toDuration().getStandardSeconds();
+				} else if (minutes >= 1)
+				{
+					// play sound and schedule to within 1 minute
+					reminder(minutes);
+					when = 60;
 				} else
 				{
-					log.debug("else...");
+					when = -1;
+					cancelTask(beepTask);
+				}
 
-					if (beepTask != null)
-					{
-						log.debug("No actions, cancelling beep task...");
-						beepTask.cancel();
-					}
+				if (when > 0)
+				{
+					beepTask = new CheckPendingActionsAndBeepTask();
+					scheduleTask(beepTask, when + 1);
+					log.debug("Beep task will be executed in " + (when + 1) + " secs ...");
+				}
+
+			} else
+			{
+				log.debug("else...");
+
+				if (beepTask != null)
+				{
+					log.debug("No actions, cancelling beep task...");
+					cancelTask(beepTask);
 				}
 			}
 		}
@@ -400,7 +453,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 	 * cref="CannotLoadProtocolException"/> solamente se producirá en esta llamada. Una vez inicializado el singleton,
 	 * se invocará el evento <see cref="ProtocolChanged"/>
 	 */
-	public void start()
+	public synchronized void start()
 	{
 		// Lo inicializamos unicamente si no está iniciado
 		if (!started)
@@ -426,14 +479,28 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			// Añadimos las actuaciones del día de hoy al planificador
 			loadDayActions();
 			// Indicamos que ya está el singleton iniciado
+
+			// TODO
+			// timer.schedule(new LogScheduledTasksRemainingDelay(), 0, 30 * 1000);
+			// executor.scheduleAtFixedRate(new LogScheduledTasksRemainingDelay(), 0, 30, TimeUnit.SECONDS);
+
 			started = true;
-
-			executor.scheduleAtFixedRate(new LogScheduledTasksRemainingDelay(), 0, 60 * 25, TimeUnit.SECONDS);
-
 			// executor.scheduleAtFixedRate(, 1, 60, TimeUnit.SECONDS);
 			// Lanzamos el evento de modificación del protocolo.
 			raiseOnProtocolChangeEvent();
+			raiseOnStartEvent();
 		}
+	}
+
+	public synchronized boolean isStarted()
+	{
+		return started;
+	}
+
+	public void stop()
+	{
+		instance = null;
+		started = false;
 	}
 
 	// / <summary>
@@ -501,7 +568,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 					// Iniciamos la ejecución en un nuevo hilo
 					// executor.schedule(new StartMedicalActionExecutionTask(pending), DELAY_TIME_IN_SECONDS,
 					// TimeUnit.SECONDS);
-					scheduleTask(new StartMedicalActionExecutionTask(pending), DELAY_TIME_IN_SECONDS, TimeUnit.SECONDS);
+					scheduleTask(new StartMedicalActionExecutionTask(pending), DELAY_TIME_IN_SECONDS);
 					log.debug("Action " + pending.getAction().getId() + " sucssesfully scheduled to execute now!");
 				}
 			}
@@ -580,15 +647,15 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			executingActions.remove(execution);
 			lockedActions.remove(execution);
 			pendingActions.remove(execution);
-			// executor.remove(timerMappings.remove(execution));
-			cancelTask(timerMappings.remove(execution));
-			locks.remove(execution);
 
 			// La añadimos al conjunto de actuaciones finalizadas, y la eliminamos del conjunto de actuaciones iniciadas
 			finishedActions.getExecutions().add(execution);
 			uncompletedActions.getExecutions().remove(execution);
 			engineHelper.saveFinishedActions(finishedActions);
 			engineHelper.saveUncompletedActions(uncompletedActions);
+
+			cancelTask(timerMappings.remove(execution));
+			locks.remove(execution);
 		}
 		// Lanzamos el evento
 		raiseOnProtocolChangeEvent();
@@ -610,7 +677,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			log.debug("Scheduling autofinish for " + target.getAction().getId() + " action in 20 seconds...");
 			// executor.schedule(new MedicalActionAutoFinishTask(target), (long) (10 + Math.random() * 10),
 			// TimeUnit.SECONDS);
-			scheduleTask(new MedicalActionAutoFinishTask(target), (long) (10 + Math.random() * 10), TimeUnit.SECONDS);
+			scheduleTask(new MedicalActionAutoFinishTask(target), (long) (10 + Math.random() * 10));
 		}
 
 		raiseOnMedicalActionStart(target);
@@ -620,22 +687,33 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 	public void onAbort(MedicalActionExecution target)
 	{
 
-		// SQLiteAdviceDAO.getInstance().add(new Advice("Servando", "A acción " + target.getAction().getDisplayName() +
-		// " caducou", new Date()));
-		// SQLiteAdviceDAO.getInstance().add(
-		// new Advice(Advice.SERVANDO_SENDER_NAME, "O protocolo estase a incumplir",
-		// DateTime.now().plusDays(1).toDate()));
-
 		log.debug("On abort called");
 		deleteAction(target);
 		schedule();
+
+		if (!target.getAction().getProvider().getId().equals("SERVANDO"))
+		{
+			AlertMsg a = new AlertMsg(AlertType.PROTOCOL_NON_COMPILANCE, "Action not done", "Action " + target.getAction().getDisplayName()
+					+ " dont done");
+			a.addParameter("action", target.getAction().getDisplayName());
+			ServandoPlatformFacade.getInstance().alert(a);
+		}
+
+		if (!"checkforupdates".equalsIgnoreCase(target.getAction().getId()) && !"dailyreport".equalsIgnoreCase(target.getAction().getId()))
+		{
+			ServandoPlatformFacade.getInstance().requireUserAtention(getService(), SoundHelper.sounds.get(SoundHelper.SOUND_ACTION_ABORT));
+
+			if (beepTask != null)
+			{
+				cancelTask(beepTask);
+				beepTask = null;
+			}
+
+			beepTask = new CheckPendingActionsAndBeepTask();
+			scheduleTask(beepTask, 5);
+		}
+
 		raiseOnMedicalActionAbort(target);
-
-		AlertMsg a = new AlertMsg(AlertType.PROTOCOL_NON_COMPILANCE, "Action not done", "Action " + target.getAction().getDisplayName()
-				+ " dont done");
-
-		a.addParameter("action", target.getAction().getDisplayName());
-		ServandoPlatformFacade.getInstance().alert(a);
 	}
 
 	@Override
@@ -644,7 +722,12 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 		deleteAction(target);
 		schedule();
 		raiseOnMedicalActionFinish(target);
-		SoundHelper.playSound(getApplicationContext(), SoundHelper.SOUND_ACTION_DONE);
+
+		if (!"checkforupdates".equalsIgnoreCase(target.getAction().getId()) && !"dailyreport".equalsIgnoreCase(target.getAction().getId()))
+		{
+			// ServandoPlatformFacade.getInstance().requireUserAtention(getService(),
+			// SoundHelper.sounds.get(SoundHelper.SOUND_ACTION_DONE));
+		}
 	}
 
 	@Override
@@ -659,6 +742,26 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 		for (ProtocolEngineListener l : protocolListeners)
 		{
 			l.onProtocolChanged();
+		}
+	}
+
+	private void raiseOnStartEvent()
+	{
+		log.debug("Raising start...");
+		for (ProtocolEngineListener l : protocolListeners)
+		{
+			l.onProtocolEngineStart();
+		}
+	}
+
+	private void raiseOnReminderEvent(long minutes)
+	{
+		// SoundHelper.playSoundAndVIbrate(agendaService, SoundHelper.SOUND_ACTION_REMINDER);
+		ServandoPlatformFacade.getInstance().requireUserAtention(getService(), SoundHelper.sounds.get(SoundHelper.SOUND_ACTION_REMINDER));
+		log.debug("Raising reminder...");
+		for (ProtocolEngineListener l : protocolListeners)
+		{
+			l.onReminder(minutes);
 		}
 	}
 
@@ -770,7 +873,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 		synchronized (engineLock)
 		{
 			ArrayList<MedicalActionExecution> all = new ArrayList<MedicalActionExecution>();
-			all.addAll(pendingActions);
+			// all.addAll(pendingActions);
 			all.addAll(executingActions);
 
 			ArrayList<MedicalActionExecution> toRemove = new ArrayList<MedicalActionExecution>();
@@ -783,6 +886,13 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			}
 
 			all.removeAll(toRemove);
+
+			log.debug("getAdvisedActions");
+
+			for (MedicalActionExecution a : all)
+			{
+				log.debug(a.toString());
+			}
 
 			return new MedicalActionExecutionList(all);
 		}
@@ -825,22 +935,15 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 			all.removeAll(toRemove);
 
+			log.debug("getFilteredDayActions: " + all.size());
+
+			for (MedicalActionExecution a : all)
+			{
+				log.debug(a.toString());
+			}
+
 			return all;
 		}
-
-		// List<MedicalActionExecution> dayActions = getDayActions(jdkCal);
-		// dayActions.removeAll(finishedActions.getExecutions());
-		// // Eliminamos aquellas que ya han expirado
-		// List<MedicalActionExecution> toRemove = new ArrayList<MedicalActionExecution>();
-		// for (MedicalActionExecution me : dayActions)
-		// {
-		// if (new DateTime(me.getStartDate()).plusSeconds((int) me.getTimeWindow()).isBeforeNow())
-		// {
-		// toRemove.add(me);
-		// }
-		// }
-		// dayActions.removeAll(toRemove);
-		// return dayActions;
 	}
 
 	private class StartMedicalActionExecutionTask extends TimerTask {
@@ -872,25 +975,27 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			}
 
 			// Lanzamos la actuación.
-			execution.start(ProtocolEngine.this);
+			execution.start(getService());
 			getInfo(execution).setScheduledTime(GregorianCalendar.getInstance());
 			getInfo(execution).setStatus(ExecutionInfo.EXEC_RUNNING);
-
-			SoundHelper.playSound(getApplicationContext(), SoundHelper.SOUND_ACTION_READY);
 
 			if (ServandoPlatformFacade.getInstance().getSettings().isActionRemindersEnabled())
 			{
 				if (!"checkforupdates".equalsIgnoreCase(execution.getAction().getId())
 						&& !"dailyreport".equalsIgnoreCase(execution.getAction().getId()))
 				{
-				if (beepTask != null)
-				{
-					beepTask.cancel();
-					beepTask = null;
-				}
+					// SoundHelper.playSoundAndVIbrate(agendaService, SoundHelper.SOUND_ACTION_READY);
 
-				beepTask = new CheckPendingActionsAndBeepTask();
-				scheduleTask(beepTask, 5, TimeUnit.SECONDS);
+					ServandoPlatformFacade.getInstance().requireUserAtention(getService(), SoundHelper.sounds.get(SoundHelper.SOUND_ACTION_READY));
+
+					if (beepTask != null)
+					{
+						cancelTask(beepTask);
+						beepTask = null;
+					}
+
+					beepTask = new CheckPendingActionsAndBeepTask();
+					scheduleTask(beepTask, 5);
 				}
 			}
 
@@ -919,7 +1024,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 				// Creamos una nueva tarea que nos avise al finalizar
 				TimerTask task = new MedicalActionExpiredTimerInvokedTask(execution);
 				// executor.schedule(task, dueTime, TimeUnit.SECONDS);
-				scheduleTask(task, dueTime, TimeUnit.SECONDS);
+				scheduleTask(task, dueTime);
 				timerMappings.put(execution, task);
 
 				// TODO Test
@@ -959,7 +1064,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 		public void run()
 		{
 			log.debug("Autofinishing " + execution.getAction().getId() + "...");
-			execution.finish(ProtocolEngine.this);
+			execution.finish(getService());
 			getInfo(execution).setFinishTime(GregorianCalendar.getInstance());
 			getInfo(execution).setStatus(ExecutionInfo.EXEC_FINISHED);
 
@@ -988,36 +1093,35 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 				// está en
 				// ejecución,
 				// la abortamos.
-				if (startDate.plusSeconds((int) execution.getTimeWindow() - 5).isBeforeNow())
-				{
-					cancelTask(timerMappings.get(execution));
-					// Si está en ejecución, la abortamos y ejecutamos el planificador.
-					if (executingActions.contains(execution))
-					{
-						log.debug("Aborting execution " + execution.getAction().getId());
-						execution.abort(ProtocolEngine.this);
-						getInfo(execution).setFinishTime(GregorianCalendar.getInstance());
-						getInfo(execution).setStatus(ExecutionInfo.EXEC_ABORTED);
-						// if (scheduledActions.contains(execution))
-						// {
-						// scheduledActions.remove(execution);
-						// }
+				// if (startDate.plusSeconds((int) execution.getTimeWindow() - 5).isBeforeNow())
+				// {
+				cancelTask(timerMappings.get(execution));
 
-					} else if (pendingActions.contains(execution))
-					{
-						deleteAction(execution);
-					}
+				// Si está en ejecución, la abortamos y ejecutamos el planificador.
+				if (executingActions.contains(execution))
+				{
+					log.debug("Aborting execution " + execution.getAction().getId());
+					execution.abort(getService());
+					getInfo(execution).setFinishTime(GregorianCalendar.getInstance());
+					getInfo(execution).setStatus(ExecutionInfo.EXEC_ABORTED);
+
+				} else if (pendingActions.contains(execution))
+				{
+					deleteAction(execution);
 				}
+
+				// }
 				// En otro caso, modificamos el tiempo del temporizador para seguir acercándonos al momento de
 				// expiración
-				else
-				{
-					long dueTime = new Duration(DateTime.now(), new DateTime(execution.getStartDate()).plusSeconds((int) execution.getTimeWindow())).getStandardSeconds();
-					log.debug("Reescheduling expiration " + dueTime + " seconds");
-					// executor.remove(timerMappings.get(execution));
-					// executor.schedule(this, dueTime >= 0 ? dueTime : 0, TimeUnit.SECONDS);
-					scheduleTask(this, dueTime >= 0 ? dueTime : 0, TimeUnit.SECONDS);
-				}
+				// else
+				// {
+				// long dueTime = new Duration(DateTime.now(), new DateTime(execution.getStartDate()).plusSeconds((int)
+				// execution.getTimeWindow())).getStandardSeconds();
+				// log.debug("Reescheduling expiration " + dueTime + " seconds");
+				// // executor.remove(timerMappings.get(execution));
+				// // executor.schedule(this, dueTime >= 0 ? dueTime : 0, TimeUnit.SECONDS);
+				// scheduleTask(this, dueTime >= 0 ? dueTime : 0, TimeUnit.SECONDS);
+				// }
 			}
 		}
 
@@ -1041,7 +1145,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 
 		if (beginDayTimerTask != null)
 		{
-			beginDayTimerTask.cancel();
+			cancelTask(beginDayTimerTask);
 			// executor.remove(beginDayTimerTask);
 		}
 
@@ -1052,7 +1156,7 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 		beginDayTimerTask = new BeginDayTimerInvokedTask();
 
 		// executor.schedule(beginDayTimerTask, doItNow ? 1000 : (timeToMidnight.getMillis()), TimeUnit.MILLISECONDS);
-		scheduleTask(beginDayTimerTask, doItNow ? 1 : (timeToMidnight.getStandardSeconds()), TimeUnit.SECONDS);
+		scheduleTask(beginDayTimerTask, doItNow ? 1 : (timeToMidnight.getStandardSeconds()));
 
 		log.debug("Next update scheduled to within " + timeToMidnight.toStandardMinutes().getMinutes() + " minutes");
 	}
@@ -1105,11 +1209,6 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 		raiseOnProtocolChangeEvent();
 	}
 
-	private List<MedicalActionExecution> getDayActions(Calendar c)
-	{
-		return engineHelper.getDayActions(c);
-	}
-
 	public Collection<ExecutionInfo> getActionsInfo()
 	{
 		return executionsInfo.values();
@@ -1128,12 +1227,6 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 		return null;
 	}
 
-	@Override
-	public ProtocolEngine getProtocolEngine()
-	{
-		return this;
-	}
-
 	private ExecutionInfo getInfo(MedicalActionExecution e)
 	{
 		ExecutionInfo info = executionsInfo.get(e);
@@ -1143,7 +1236,6 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 			info = new ExecutionInfo(e);
 			info.setInfoListener(this);
 			executionsInfo.put(e, info);
-
 		}
 
 		return info;
@@ -1164,4 +1256,60 @@ public class ProtocolEngine extends ProtocolEngineService implements MedicalActi
 						+ (abort != null ? sdf.format(abort.getTime()) : "null") + ", " + "finish: "
 						+ (finish != null ? sdf.format(finish.getTime()) : "null"));
 	}
+
+	public void acquireWakeLock()
+	{
+		getService().acquireWakeLock();
+	}
+
+	ServandoBackgroundService getService()
+	{
+		return ServandoBackgroundService.$.getInstance();
+	}
+
+	private SparseArray<TimerTask> scheduledTasks = new SparseArray<TimerTask>();
+	private Timer taskExecutor = new Timer("taskExecutor");
+
+	void scheduleTaskImproved(TimerTask task, int delayInSeconds)
+	{
+		// put task into scheduled tasks buffer
+		int id = task.hashCode();
+		scheduledTasks.put(task.hashCode(), task);
+		// get absolute reference to its execution time
+		Calendar executionTime = DateTime.now().plusSeconds(delayInSeconds).toGregorianCalendar();
+		// intent the our receiver will receive
+		Intent intent = new Intent(getService(), AlarmReceiver.class);
+		intent.putExtra("taskid", id);
+		// create pending intent
+		int intent_id = (int) System.currentTimeMillis();
+		PendingIntent sender = PendingIntent.getBroadcast(getService(), intent_id, intent, PendingIntent.FLAG_ONE_SHOT);
+		getService();
+		// Get the AlarmManager service
+		AlarmManager am = (AlarmManager) getService().getSystemService(Context.ALARM_SERVICE);
+		am.set(AlarmManager.RTC_WAKEUP, executionTime.getTimeInMillis(), sender);
+
+		log.debug("Scheduling task to " + new DateTime(executionTime).toString(fmt));
+	}
+
+	public void runTask(int taskId)
+	{
+		TimerTask task = scheduledTasks.get(taskId);
+		if (task != null)
+		{
+			// execute task now
+			try
+			{
+				taskExecutor.schedule(task, 0);
+				scheduledTasks.remove(taskId);
+
+			} catch (Exception e)
+			{
+				log.debug("Connot run task with id " + taskId + ". Task is cancelled.");
+			}
+		} else
+		{
+			log.debug("Connot run task with id " + taskId + ". Task not present in buffer.");
+		}
+	}
+
 }

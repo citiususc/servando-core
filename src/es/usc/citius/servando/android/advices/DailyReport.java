@@ -134,7 +134,7 @@ public class DailyReport {
 				boolean nonCompilanceAdviced = false;
 				// Creamos un nuevo informe
 				Advice report = new Advice(Advice.SERVANDO_SENDER_NAME, "", new Date());
-				Resources res = ServandoPlatformFacade.getInstance().getProtocolEngine().getResources();
+				Resources res = ServandoPlatformFacade.getInstance().getResources();
 				String msg = String.format(res.getString(R.string.daily_report_openning), ServandoPlatformFacade.getInstance().getPatient().getName());
 				String noncompilanceMsg = res.getString(R.string.alert_protocol_non_compilance);
 				for (Advice adv : list)

@@ -7,6 +7,7 @@ package es.usc.citius.servando.android.xml.converters;
 
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+
 import org.simpleframework.xml.convert.Converter;
 import org.simpleframework.xml.stream.InputNode;
 import org.simpleframework.xml.stream.OutputNode;
@@ -32,6 +33,10 @@ public class GregorianCalendarConverter implements Converter<GregorianCalendar> 
 		int millisecond = Integer.parseInt(v.substring(20, 23));
 		GregorianCalendar gc = new GregorianCalendar(year, month, dayOfMonth, hourOfDay, minute, second);
 		gc.set(Calendar.MILLISECOND, millisecond);
+
+		// TODO cambiar esto!
+		// gc.setTimeZone(TimeZone.getTimeZone("GMT+1"));
+
 		return gc;
 	}
 

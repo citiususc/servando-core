@@ -37,6 +37,7 @@ public class ServandoStartConfig {
 	public static final String APK_URL = "updates.apkurl";
 	public static final String SDCARD_DATA_URL = "updates.sdfilesurl";
 	public static final String SDCARD_PATIENT_DATA_URL = "updates.patientsdfilesurl";
+	public static final String PROTOCOL_UPDATE_URL = "updates.protocolupdateurl";
 
 	/**
 	 * Properties

@@ -10,8 +10,6 @@ public class NotificationMgr {
 
 	private static final String DEBUG_TAG = NotificationMgr.class.getSimpleName();
 
-	private ServandoService servandoService;
-
 	private List<Notification> notifications;
 
 	private TextToSpeech tts;
@@ -45,26 +43,18 @@ public class NotificationMgr {
 	public void add(Notification n, boolean showOnStatusBar)
 	{
 		notifications.add(n);
-		if (showOnStatusBar && servandoService != null)
-		{
-			servandoService.updateNotifications(notifications.size());
-		}
 	}
 
 	public Notification remove(int idx)
 	{
 		Notification n = notifications.remove(idx);
-		if (servandoService != null)
-		{
-			servandoService.updateNotifications(notifications.size());
-		}
 		return n;
 	}
 
 	public void clear()
 	{
 		notifications.clear();
-		servandoService.updateNotifications(0);
+		// servandoService.updateNotifications(0);
 	}
 
 	public List<Notification> getNotifications()
@@ -75,16 +65,6 @@ public class NotificationMgr {
 	public void setNotifications(List<Notification> notifications)
 	{
 		this.notifications = notifications;
-	}
-
-	public ServandoService getServandoService()
-	{
-		return servandoService;
-	}
-
-	public void setServandoService(ServandoService servandoService)
-	{
-		this.servandoService = servandoService;
 	}
 
 	public void ttsNotification(String text)

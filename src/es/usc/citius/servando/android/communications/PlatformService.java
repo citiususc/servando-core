@@ -1,23 +1,14 @@
 package es.usc.citius.servando.android.communications;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.URI;
-import java.net.URL;
-import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -27,6 +18,7 @@ import es.usc.citius.servando.android.advices.DailyReport;
 import es.usc.citius.servando.android.advices.ServandoAdviceMgr;
 import es.usc.citius.servando.android.agenda.PlatformResources;
 import es.usc.citius.servando.android.agenda.PlatformResources.Available;
+import es.usc.citius.servando.android.agenda.ServandoBackgroundService;
 import es.usc.citius.servando.android.logging.ILog;
 import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
 import es.usc.citius.servando.android.models.protocol.MedicalAction;
@@ -35,8 +27,6 @@ import es.usc.citius.servando.android.models.protocol.MedicalActionPriority;
 import es.usc.citius.servando.android.models.protocol.MedicalActionState;
 import es.usc.citius.servando.android.models.services.IPlatformService;
 import es.usc.citius.servando.android.models.util.ParameterList;
-import es.usc.citius.servando.android.settings.ServandoStartConfig;
-import es.usc.citius.servando.android.settings.StorageModule;
 
 public class PlatformService implements IPlatformService, CommunicableService {
 
@@ -182,67 +172,69 @@ public class PlatformService implements IPlatformService, CommunicableService {
 		@Override
 		public void start(final Context ctx)
 		{
-			new Thread(new Runnable()
-			{
-
-				@Override
-				public void run()
-				{
-					Integer currVersion;
-					Integer lastVersion;
-
-					String versionFilePath = StorageModule.getInstance().getBasePath() + "/version";
-
-					URL url = null;
-					try
-					{
-						url = new URL(ServandoStartConfig.getInstance().get(ServandoStartConfig.CHECK_UPDATES_URL));
-
-						URLConnection connection = url.openConnection();
-						connection.setConnectTimeout(4000);
-						connection.connect();
-						// download the file
-						InputStream input = new BufferedInputStream(url.openStream());
-						OutputStream output = new FileOutputStream(versionFilePath);
-
-						byte data[] = new byte[1024];
-						int count;
-
-						while ((count = input.read(data)) != -1)
-						{
-							output.write(data, 0, count);
-						}
-
-						output.flush();
-						output.close();
-						input.close();
-
-						Scanner scanner = new Scanner(new File(versionFilePath));
-
-						if (scanner.hasNextInt())
-						{
-							lastVersion = scanner.nextInt();
-							currVersion = readVersion(ctx);
-
-							log.debug("lastVersion: " + lastVersion + ", currentVersion: " + currVersion);
-
-							if (lastVersion > currVersion || currVersion == -1)
-							{
-								Intent intent = new Intent();
-								intent.setClassName("es.usc.citius.servando.android.app", "es.usc.citius.servando.android.app.UpdateActivity");
-								intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-								ctx.getApplicationContext().startActivity(intent);
-							}
-						}
-
-					} catch (Exception e)
-					{
-						log.error("Error in checkforupdates action", e);
-					}
-
-					finish(ctx);
-				}
-			}).start();
+			ServandoBackgroundService.$.getInstance().checkForUpdates();
+			// new Thread(new Runnable()
+			// {
+			//
+			// @Override
+			// public void run()
+			// {
+			// Integer currVersion;
+			// Integer lastVersion;
+			//
+			// String versionFilePath = StorageModule.getInstance().getBasePath() + "/version";
+			//
+			// URL url = null;
+			// try
+			// {
+			// url = new URL(ServandoStartConfig.getInstance().get(ServandoStartConfig.CHECK_UPDATES_URL));
+			//
+			// URLConnection connection = url.openConnection();
+			// connection.setConnectTimeout(4000);
+			// connection.connect();
+			// // download the file
+			// InputStream input = new BufferedInputStream(url.openStream());
+			// OutputStream output = new FileOutputStream(versionFilePath);
+			//
+			// byte data[] = new byte[1024];
+			// int count;
+			//
+			// while ((count = input.read(data)) != -1)
+			// {
+			// output.write(data, 0, count);
+			// }
+			//
+			// output.flush();
+			// output.close();
+			// input.close();
+			//
+			// Scanner scanner = new Scanner(new File(versionFilePath));
+			//
+			// if (scanner.hasNextInt())
+			// {
+			// lastVersion = scanner.nextInt();
+			// currVersion = readVersion(ctx);
+			//
+			// log.debug("lastVersion: " + lastVersion + ", currentVersion: " + currVersion);
+			//
+			// if (lastVersion > currVersion || currVersion == -1)
+			// {
+			// Intent intent = new Intent();
+			// intent.setClassName("es.usc.citius.servando.android.app",
+			// "es.usc.citius.servando.android.app.UpdateActivity");
+			// intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+			// ctx.getApplicationContext().startActivity(intent);
+			// }
+			// }
+			//
+			// } catch (Exception e)
+			// {
+			// log.error("Error in checkforupdates action", e);
+			// }
+			//
+			// finish(ctx);
+			// }
+			// }).start();
 
 		}
 

@@ -7,20 +7,24 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import org.apache.log4j.Level;
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Resources;
+import android.net.Uri;
 import android.util.Log;
+import es.usc.citius.servando.R;
 import es.usc.citius.servando.android.advices.storage.SQLiteAdviceDAO;
 import es.usc.citius.servando.android.agenda.ProtocolEngine;
-import es.usc.citius.servando.android.agenda.ProtocolEngineServiceBinder;
-import es.usc.citius.servando.android.agenda.ProtocolEngineServiceBinder.ProtocolEngineServiceBinderListener;
+import es.usc.citius.servando.android.agenda.ProtocolEngineListener;
+import es.usc.citius.servando.android.agenda.ServandoBackgroundService;
 import es.usc.citius.servando.android.alerts.AlertMgr;
 import es.usc.citius.servando.android.alerts.AlertMsg;
 import es.usc.citius.servando.android.alerts.PatientAdviceAlertHandler;
@@ -36,13 +40,15 @@ import es.usc.citius.servando.android.logging.Log4JConfig;
 import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
 import es.usc.citius.servando.android.models.patients.Patient;
 import es.usc.citius.servando.android.models.protocol.MedicalAction;
+import es.usc.citius.servando.android.models.protocol.MedicalActionExecution;
 import es.usc.citius.servando.android.models.protocol.MedicalActionMgr;
 import es.usc.citius.servando.android.models.services.IPlatformService;
 import es.usc.citius.servando.android.models.services.ServiceManager;
 import es.usc.citius.servando.android.models.services.StorageAvailableService;
 import es.usc.citius.servando.android.settings.ServandoSettings;
 import es.usc.citius.servando.android.settings.StorageModule;
-import es.usc.citius.servando.android.ui.ServandoService;
+import es.usc.citius.servando.android.sound.SoundHelper;
+import es.usc.citius.servando.android.ui.animation.AnimationStore;
 import es.usc.citius.servando.android.util.BluetoothUtils;
 import es.usc.citius.servando.android.xml.helpers.SimpleXMLSerializator;
 
@@ -56,14 +62,21 @@ import es.usc.citius.servando.android.xml.helpers.SimpleXMLSerializator;
  * 
  * @author Ángel Piñeiro
  */
-public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListener {
+public class ServandoPlatformFacade {
 
 	private static final String DEBUG_TAG = ServandoPlatformFacade.class.getSimpleName();
+
+	public static final String SPLASH_ATIVITY = "es.usc.citius.servando.android.app.activities.SplashActivity";
+	public static final String ACTION_ATIVITY = "es.usc.citius.servando.android.app.activities.SwitcherActivity";
+	public static final String HOME_ACTIVITY = "es.usc.citius.servando.android.app.activities.PatientHomeActivity";
+	public static final String APPLICATION_PACKAGE = "es.usc.citius.servando.android.app";
+	public static final String NOTIFICATIONS_UPDATE = "es.usc.citius.servando.android.NOTIFICATIONS_UPDATE";
+	public static final int SERVANDO_ID = "es.usc.citius.servando.android.NOTIFICATION".hashCode();
 
 	/**
 	 * Singleton unique instance
 	 */
-	private static final ServandoPlatformFacade instance = new ServandoPlatformFacade();
+	private static ServandoPlatformFacade instance;
 	/**
 	 * ServandoPlatform faccede Logger
 	 */
@@ -89,12 +102,12 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 	/**
 	 *
 	 */
-	// private MedicalActionStore medicalActionStore;
+	private static Object lock = new Object();
 
 	/**
 	 * Indicates whether the platform is initializad or not
 	 */
-	private boolean started = false;
+	private static boolean started = false;
 
 	/**
 	 * HTTP server
@@ -155,6 +168,13 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 	 */
 	public static ServandoPlatformFacade getInstance()
 	{
+		synchronized (lock)
+		{
+			if (instance == null)
+			{
+				instance = new ServandoPlatformFacade();
+			}
+		}
 		return instance;
 	}
 
@@ -196,7 +216,7 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 
 			try
 			{	// add service actions
-			// medicalActionStore.addServiceActions(service);
+				// medicalActionStore.addServiceActions(service);
 			} catch (Exception e)
 			{
 				log.error("An error ocurred while loading " + service.getId() + " actions.", e);
@@ -252,9 +272,9 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 	 * @param ctx
 	 * @throws IOException
 	 */
-	public synchronized void start(Context ctx) throws Exception
+	public synchronized void start(Context ctx, boolean force) throws Exception
 	{
-		if (!started)
+		if (!started || force)
 		{
 
 			patient = loadPatient();
@@ -294,10 +314,11 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 				startHttpServer(ctx);
 			}
 
+			AnimationStore.getInstance().initialize(ctx);
+			SoundHelper.initSounds(ctx);
+			ProtocolEngine.getInstance().addProtocolListener(new AgendaListener());
 			SQLiteAdviceDAO.getInstance().initialize(ctx);
 
-			ProtocolEngineServiceBinder.getInstance().setBindingListener(this);
-			ProtocolEngineServiceBinder.getInstance().startAndBindToAppContext(ctx);
 
 			SystemStatusMonitor.getInstance().updateStatus(ctx);
 			log.info(SystemStatusMonitor.getInstance().toString());
@@ -305,6 +326,14 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 			if (BluetoothUtils.getInstance().getAdapter() == null)
 			{
 				BluetoothUtils.getInstance().setAdapter(BluetoothAdapter.getDefaultAdapter());
+			}
+
+			if (!ProtocolEngine.getInstance().isStarted())
+			{
+				ctx.startService(new Intent(ctx, ServandoBackgroundService.class));
+			} else
+			{
+				raiseOnReady();
 			}
 
 			started = true;
@@ -321,6 +350,8 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 		// if platform is started
 		if (started)
 		{
+			unrequireUserAttention(ctx);
+			ProtocolEngine.getInstance().stop();
 			started = false;
 			// stop http server
 			stopHttpServer();
@@ -331,11 +362,7 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 				unregisterService(service);
 			}
 			// stop servando background service
-			if (ServandoService.isRunning())
-			{
-				ProtocolEngineServiceBinder.getInstance().unbind(ctx);
-				ctx.stopService(new Intent(ctx, ServandoService.class));
-			}
+			ctx.stopService(new Intent(ctx, ServandoBackgroundService.class));
 		}
 	}
 
@@ -399,7 +426,8 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 	 */
 	public ProtocolEngine getProtocolEngine()
 	{
-		return ProtocolEngineServiceBinder.getInstance().getProtocolEngine();
+		// TODO return ProtocolEngineServiceBinder.getInstance().getProtocolEngine();
+		return ProtocolEngine.getInstance();
 	}
 
 	/**
@@ -468,25 +496,25 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 		}
 	}
 
-	@Override
-	public void onBind(final ProtocolEngine engine)
-	{
-		// load day actions
-		Timer t = new Timer();
-		t.schedule(new TimerTask()
-		{
-
-			@Override
-			public void run()
-			{
-				engine.start();
-
-			}
-		}, 1000);
-
-		// notify platform ready
-		raiseOnReady();
-	}
+	// @Override
+	// public void onBind(final ProtocolEngine engine)
+	// {
+	// // load day actions
+	// Timer t = new Timer();
+	// t.schedule(new TimerTask()
+	// {
+	//
+	// @Override
+	// public void run()
+	// {
+	// engine.start();
+	//
+	// }
+	// }, 1000);
+	//
+	// // notify platform ready
+	// raiseOnReady();
+	// }
 
 	private void raiseOnReady()
 	{
@@ -515,7 +543,124 @@ public class ServandoPlatformFacade implements ProtocolEngineServiceBinderListen
 		void onReady();
 	}
 
+	public Resources getResources()
+	{
+		return ServandoBackgroundService.$.getInstance().getResources();
+	}
+
+	public class AgendaListener implements ProtocolEngineListener {
+
+		@Override
+		public void onExecutionStart(MedicalActionExecution target)
+		{
+			// TODO Auto-generated method stub
+
+		}
+
+		@Override
+		public void onExecutionAbort(MedicalActionExecution target)
+		{
+			// TODO Auto-generated method stub
+
+		}
+
+		@Override
+		public void onExecutionFinish(MedicalActionExecution target)
+		{
+			// TODO Auto-generated method stub
+
+		}
+
+		@Override
+		public void onLoadDayActions()
+		{
+			// TODO Auto-generated method stub
+		}
+
+		@Override
+		public void onProtocolChanged()
+		{
+			// TODO Auto-generated method stub
+		}
+
+		@Override
+		public void onProtocolEngineStart()
+		{
+			raiseOnReady();
+		}
+
+		@Override
+		public void onReminder(long minutes)
+		{
+			// TODO Auto-generated method stub
+
+		}
+	}
+
+	public void requireUserAtention(Context ctx)
+	{
+		// PlatformService.getTransporter().send(new Ping());
+
+		int icon = R.drawable.ic_servando_notification;
+		// Create intent to open patient activity
+		Intent contentIntent = new Intent();
+		contentIntent.setClassName("es.usc.citius.servando.android.app", SPLASH_ATIVITY);
+		// Create pending intent
+		PendingIntent appIntent = PendingIntent.getActivity(ctx, 0, contentIntent, PendingIntent.FLAG_CANCEL_CURRENT);
+		// Create notification
+		Notification n = new Notification(icon, "Servando requires your attention", System.currentTimeMillis());
+		n.flags = Notification.FLAG_SHOW_LIGHTS;
+		n.ledOnMS = 2000;
+		n.ledOffMS = 4000;
+		n.ledARGB = 0xFF2072b9;
+		n.setLatestEventInfo(ctx, "Servando", "Servando requires your attention.", appIntent);
+		n.defaults |= Notification.DEFAULT_VIBRATE;
+		n.defaults |= Notification.DEFAULT_SOUND;
+
+		// candel previous notification if any
+		unrequireUserAttention(ctx);
+		// Show notification
+		((NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE)).notify(SERVANDO_ID, n);
+		// play sound
+	}
+
+	public void requireUserAtention(Context ctx, Uri sound)
+	{
+		// PlatformService.getTransporter().send(new Ping());
+
+		int icon = R.drawable.ic_servando_notification;
+		// Create intent to open patient activity
+		Intent contentIntent = new Intent();
+		contentIntent.setClassName("es.usc.citius.servando.android.app", SPLASH_ATIVITY);
+		// Create pending intent
+		PendingIntent appIntent = PendingIntent.getActivity(ctx, 0, contentIntent, PendingIntent.FLAG_CANCEL_CURRENT);
+		// Create notification
+		Notification n = new Notification(icon, "Servando requires your attention", System.currentTimeMillis());
+		n.flags = Notification.FLAG_SHOW_LIGHTS;
+		n.ledOnMS = 2000;
+		n.ledOffMS = 4000;
+		n.ledARGB = 0xFF2072b9;
+		n.setLatestEventInfo(ctx, "Servando", "Servando requires your attention.", appIntent);
+		n.defaults = Notification.DEFAULT_VIBRATE;
+		// n.defaults |= Notification.DEFAULT_SOUND; // comment for sound
+		n.sound = sound;
+		// candel previous notification if any
+		unrequireUserAttention(ctx);
+		// Show notification
+		((NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE)).notify(SERVANDO_ID, n);
+		// play sound
+
+	}
+
+	public void unrequireUserAttention(Context ctx)
+	{
+		((NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE)).cancel(SERVANDO_ID);
+	}
+
+	public static boolean isStarted()
+	{
+		ServandoBackgroundService.$.getInstance();
+		return started;
+	}
 
 }
-
-

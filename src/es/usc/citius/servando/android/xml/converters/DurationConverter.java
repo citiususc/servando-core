@@ -39,7 +39,7 @@ public class DurationConverter implements Converter<Long> {
 	public Long read(InputNode in) throws Exception
 	{
 		long result = 0;
-		String nodeValue = in.getValue();
+		String nodeValue = in.getValue().trim();
 
 		try
 		{
@@ -55,10 +55,9 @@ public class DurationConverter implements Converter<Long> {
 	@Override
 	public void write(OutputNode on, Long t) throws Exception
 	{
-
 		StringBuffer sb = new StringBuffer(20);
 		fmt.printTo(sb, Period.seconds(t.intValue()));
-		on.setValue(sb.toString());
+		on.setValue(sb.toString().trim().trim().trim());
 	}
 
 }

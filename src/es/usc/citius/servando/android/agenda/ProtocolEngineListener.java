@@ -14,4 +14,8 @@ public interface ProtocolEngineListener {
 
 	public void onProtocolChanged();
 
+	public void onProtocolEngineStart();
+
+	public void onReminder(long minutes);
 }
+

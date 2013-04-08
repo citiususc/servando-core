@@ -30,7 +30,7 @@ public class ProtocolEngineServiceBinder {
 	/**
 	 * Static member to obtain the unique instance
 	 */
-	public static ProtocolEngineServiceBinder getInstance()
+	private static ProtocolEngineServiceBinder getInstance()
 	{
 		return instance;
 	}

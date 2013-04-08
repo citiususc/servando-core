@@ -57,7 +57,7 @@ public class PatientAdviceAlertHandler implements AlertHandler {
 
 		case PROTOCOL_NON_COMPILANCE:
 			String actionName = m.getParameters().get("action");
-			Resources r = ServandoPlatformFacade.getInstance().getProtocolEngine().getResources();
+			Resources r = ServandoPlatformFacade.getInstance().getResources();
 			String adviceToNow = String.format(r.getString(R.string.alert_action_expired), actionName);
 			String adviceToTomorrow = r.getString(R.string.alert_protocol_non_compilance);
 			advices.add(new Advice("Servando", adviceToNow, now));
