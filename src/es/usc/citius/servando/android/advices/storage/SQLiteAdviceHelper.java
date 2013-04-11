@@ -23,10 +23,12 @@ public class SQLiteAdviceHelper extends SQLiteOpenHelper {
 	public static final String DATE_FORMAT = "yyyy-MM-dd kk:mm:ss";
 	public static final String SEEN_COLUMN = "seen";
 	public static final int SEEN_COLUMN_INDEX = 4;
+	public static final String DAILY_REPORT_COLUMN = "report";
+	public static final int DAILY_REPORT_COLUMN_INDEX = 5;
 
 	private static final String CREATE_DATA_BASE_SCRIPT = "CREATE TABLE " + ADVICES_TABLE_NAME + "(" + KEY_COLUMN
 			+ " INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," + SENDER_COLUMN + " varchar(50), " + MESSAGGE_COLUMN + " varchar(300), " + DATE_COLUMN
-			+ " varchar(50)," + SEEN_COLUMN + " INTEGER)";
+			+ " varchar(50)," + SEEN_COLUMN + " INTEGER," + DAILY_REPORT_COLUMN + " INTEGER)";
 
 	private static final String DELETE_DATABASE_SCRIPT = "DROP TABLE " + ADVICES_TABLE_NAME;
 

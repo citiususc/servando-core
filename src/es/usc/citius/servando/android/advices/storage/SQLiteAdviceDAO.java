@@ -3,6 +3,7 @@ package es.usc.citius.servando.android.advices.storage;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -25,7 +26,7 @@ public class SQLiteAdviceDAO {
 
 	private static ILog logger = ServandoLoggerFactory.getLogger(SQLiteAdviceDAO.class);
 	private static final String DATA_BASE_NAME = "ADVICES_DB";
-	private static final int DATA_BASE_VERSION = 2;
+	private static final int DATA_BASE_VERSION = 3;
 	private static SQLiteAdviceDAO instance;
 	private SQLiteAdviceHelper helper;
 	private SQLiteDatabase database;
@@ -178,7 +179,7 @@ public class SQLiteAdviceDAO {
 	}
 
 	/**
-	 * This method get all messagges in database
+	 * This method get all messages that ARE NOT REPORTS, ordered by date(newest first)
 	 * 
 	 * @return
 	 */
@@ -189,28 +190,13 @@ public class SQLiteAdviceDAO {
 		Cursor cursor = null;
 		try
 		{
-			String sql = "select * from " + SQLiteAdviceHelper.ADVICES_TABLE_NAME;
+			// Seleccionamos todos aquellos que no sean daily reports
+			String sql = "select * from " + SQLiteAdviceHelper.ADVICES_TABLE_NAME + " WHERE " + SQLiteAdviceHelper.DAILY_REPORT_COLUMN + " = 0";
 			cursor = doQuery(sql);
-			if (cursor != null && cursor.getCount() > 0)
-			{
-				cursor.moveToFirst();
-				while (!cursor.isAfterLast())
-				{
-					int id = cursor.getInt(SQLiteAdviceHelper.KEY_COLUMN_INDEX);
-					String sender = cursor.getString(SQLiteAdviceHelper.SENDER_COLUMN_INDEX);
-					String msg = cursor.getString(SQLiteAdviceHelper.MESSAGGE_COLUMN_INDEX);
-					String dateString = cursor.getString(SQLiteAdviceHelper.DATE_COLUMN_INDEX);
-					Date date = this.dateFromString(dateString);
-					boolean seen = false;
-					if (cursor.getInt(SQLiteAdviceHelper.SEEN_COLUMN_INDEX) == 1)
-					{
-						seen = true;
-					}
-					Advice advice = new Advice(id, sender, msg, date, seen);
-					list.add(advice);
-					cursor.moveToNext();
-				}
-			}
+			// Obtenemos la lista de advices
+			list = this.getAdvicesFromCursor(cursor);
+			Collections.sort(list);
+			Collections.reverse(list);
 		} catch (Exception e)
 		{
 			logger.error("Error getting not seen advices.", e);
@@ -228,7 +214,8 @@ public class SQLiteAdviceDAO {
 	}
 
 	/**
-	 * This method return all advices that at this moment is marked as not seen
+	 * This method return all advices that at this moment is marked as not seen and ARE NOT REPORTS, ordered by date
+	 * (newest first)
 	 * 
 	 * @return
 	 */
@@ -236,31 +223,17 @@ public class SQLiteAdviceDAO {
 	{
 		List<Advice> list = new ArrayList<Advice>();
 		this.openToRead();
-		String sql = "select * from " + SQLiteAdviceHelper.ADVICES_TABLE_NAME + " WHERE " + SQLiteAdviceHelper.SEEN_COLUMN + " = 0";
+		String sql = "select * from " + SQLiteAdviceHelper.ADVICES_TABLE_NAME + " WHERE " + SQLiteAdviceHelper.SEEN_COLUMN + " = 0 AND "
+				+ SQLiteAdviceHelper.DAILY_REPORT_COLUMN + " = 0";
 		Cursor cursor = null;
 		try
 		{
 			cursor = doQuery(sql);
-			if (cursor != null && cursor.getCount() > 0)
-			{
-				cursor.moveToFirst();
-				while (!cursor.isAfterLast())
-				{
-					int id = cursor.getInt(SQLiteAdviceHelper.KEY_COLUMN_INDEX);
-					String sender = cursor.getString(SQLiteAdviceHelper.SENDER_COLUMN_INDEX);
-					String msg = cursor.getString(SQLiteAdviceHelper.MESSAGGE_COLUMN_INDEX);
-					String dateString = cursor.getString(SQLiteAdviceHelper.DATE_COLUMN_INDEX);
-					Date date = this.dateFromString(dateString);
-					boolean seen = false;
-					if (cursor.getInt(SQLiteAdviceHelper.SEEN_COLUMN_INDEX) == 1)
-					{
-						seen = true;
-					}
-					Advice advice = new Advice(id, sender, msg, date, seen);
-					list.add(advice);
-					cursor.moveToNext();
-				}
-			}
+			// Obtenemos la lista de advices
+			list = this.getAdvicesFromCursor(cursor);
+			Collections.sort(list);
+			Collections.reverse(list);
+
 		} catch (Exception e)
 		{
 			logger.error("Error getting not seen advices.", e);
@@ -272,11 +245,50 @@ public class SQLiteAdviceDAO {
 			}
 			this.close();
 		}
+
 		return list;
 	}
 
 	/**
-	 * This method delete all messagges from database
+	 * This method get a list of advices from a database cursor
+	 * 
+	 * @param cursor
+	 * @return
+	 * @throws Exception
+	 */
+	private List<Advice> getAdvicesFromCursor(Cursor cursor) throws Exception
+	{
+		List<Advice> advices = new ArrayList<Advice>();
+		if (cursor != null && cursor.getCount() > 0)
+		{
+			cursor.moveToFirst();
+			while (!cursor.isAfterLast())
+			{
+				int id = cursor.getInt(SQLiteAdviceHelper.KEY_COLUMN_INDEX);
+				String sender = cursor.getString(SQLiteAdviceHelper.SENDER_COLUMN_INDEX);
+				String msg = cursor.getString(SQLiteAdviceHelper.MESSAGGE_COLUMN_INDEX);
+				String dateString = cursor.getString(SQLiteAdviceHelper.DATE_COLUMN_INDEX);
+				Date date = this.dateFromString(dateString);
+				boolean seen = false;
+				if (cursor.getInt(SQLiteAdviceHelper.SEEN_COLUMN_INDEX) == 1)
+				{
+					seen = true;
+				}
+				boolean report = false;
+				if (cursor.getInt(SQLiteAdviceHelper.DAILY_REPORT_COLUMN_INDEX) == 1)
+				{
+					report = true;
+				}
+				Advice advice = new Advice(id, sender, msg, date, seen, report);
+				advices.add(advice);
+				cursor.moveToNext();
+			}
+		}
+		return advices;
+	}
+
+	/**
+	 * This method delete all messages from database
 	 */
 	public synchronized void removeAll()
 	{
@@ -322,6 +334,13 @@ public class SQLiteAdviceDAO {
 			{
 				cv.put(SQLiteAdviceHelper.SEEN_COLUMN, 0);
 			}
+			if (advice.isReport())
+			{
+				cv.put(SQLiteAdviceHelper.DAILY_REPORT_COLUMN, 1);
+			} else
+			{
+				cv.put(SQLiteAdviceHelper.DAILY_REPORT_COLUMN, 0);
+			}
 			result = insert(cv);
 		} catch (Exception e)
 		{
@@ -332,7 +351,7 @@ public class SQLiteAdviceDAO {
 			if (result != -1)
 			{
 				advice.setId((int) result);
-				logger.debug("Se ha insertado: " + advice.toString());
+				logger.debug("[INSERT]" + advice.toString());
 				fireOnAdviceAdded(advice);
 
 			} else
@@ -346,7 +365,7 @@ public class SQLiteAdviceDAO {
 	}
 
 	/**
-	 * This method delete de advice with this id
+	 * This method delete the advice with this id
 	 * 
 	 * @param id
 	 * @return Return false if some there are some problem, true in other case
@@ -372,22 +391,23 @@ public class SQLiteAdviceDAO {
 	}
 
 	/**
-	 * This method allow mark an advice as seen
+	 * This method allow mark an advice as seen in the database
 	 * 
 	 * @param id
 	 * @return
 	 */
-	private boolean markAsSeen(int id)
+	public boolean markAsSeen(Advice advice)
 	{
 		boolean result = true;
 		this.openToWrite();
 		try
 		{
-			String sql = "UPDATE " + SQLiteAdviceHelper.ADVICES_TABLE_NAME + " SET " + SQLiteAdviceHelper.SEEN_COLUMN + " = 1 " + " WHERE id = " + id;
+			String sql = "UPDATE " + SQLiteAdviceHelper.ADVICES_TABLE_NAME + " SET " + SQLiteAdviceHelper.SEEN_COLUMN + " = 1 " + " WHERE id = "
+					+ advice.getId();
 			executeQuery(sql);
 		} catch (SQLiteException ex)
 		{
-			logger.error("It was not possible set as seen advice with id: " + id, ex);
+			logger.error("It was not possible set as seen advice with id: " + advice.getId(), ex);
 			result = false;
 		} finally
 		{
@@ -397,71 +417,74 @@ public class SQLiteAdviceDAO {
 	}
 
 	/**
-	 * This method mark the advice, or the subadvices as seen, but only in database, the responsable to change the
-	 * object value is the user
-	 * 
-	 * @param adv
+	 * This method delete all report messages from database
 	 */
-	public synchronized void markAsSeen(Advice adv)
+	public synchronized void removeAllReports(List<Advice> reports)
 	{
-		if (adv.getSubAdvices().size() > 0)
+		for (Advice report : reports)
 		{
-			for (Advice advice : adv.getSubAdvices())
+			if (report.isReport())
 			{
-				this.markAsSeen(advice.getId());
+				this.remove(report.getId());
 			}
-		} else
-		{
-			this.markAsSeen(adv.getId());
 		}
-		fireOnAdviceSeen(adv);
 
 	}
 
 	/**
-	 * This method return the number of advices that was not seen
+	 * This method get all messages that ARE REPORTS
 	 * 
-	 * @return -1 if error
+	 * @return
 	 */
-	public synchronized int getNotSeenCount()
+	public synchronized List<Advice> getAllReports()
 	{
-		int result = -1;
+		List<Advice> list = new ArrayList<Advice>();
+		this.openToRead();
 		Cursor cursor = null;
-		if (initialized)
+		try
 		{
-			try
+			// Seleccionamos todos aquellos que no sean daily reports
+			String sql = "select * from " + SQLiteAdviceHelper.ADVICES_TABLE_NAME + " WHERE " + SQLiteAdviceHelper.DAILY_REPORT_COLUMN + " = 1";
+			cursor = doQuery(sql);
+			if (cursor != null && cursor.getCount() > 0)
 			{
-				this.openToRead();
-				if (this.database != null)
+				cursor.moveToFirst();
+				while (!cursor.isAfterLast())
 				{
-					String sql = "SELECT COUNT(*) AS result FROM " + SQLiteAdviceHelper.ADVICES_TABLE_NAME + " WHERE "
-							+ SQLiteAdviceHelper.SEEN_COLUMN + " = 0";
-					logger.debug(sql);
-					cursor = this.database.rawQuery(sql, new String[] {});
-					if (cursor != null)
+					int id = cursor.getInt(SQLiteAdviceHelper.KEY_COLUMN_INDEX);
+					String sender = cursor.getString(SQLiteAdviceHelper.SENDER_COLUMN_INDEX);
+					String msg = cursor.getString(SQLiteAdviceHelper.MESSAGGE_COLUMN_INDEX);
+					String dateString = cursor.getString(SQLiteAdviceHelper.DATE_COLUMN_INDEX);
+					Date date = this.dateFromString(dateString);
+					boolean seen = false;
+					if (cursor.getInt(SQLiteAdviceHelper.SEEN_COLUMN_INDEX) == 1)
 					{
-						if (cursor.moveToFirst())
-						{
-							result = cursor.getInt(0);
-						}
-						cursor.close();
+						seen = true;
 					}
-
+					boolean report = false;
+					if (cursor.getInt(SQLiteAdviceHelper.DAILY_REPORT_COLUMN_INDEX) == 1)
+					{
+						report = true;
+					}
+					Advice advice = new Advice(id, sender, msg, date, seen, report);
+					list.add(advice);
+					cursor.moveToNext();
 				}
-			} catch (SQLiteException ex)
-			{
-				logger.error("Error getting not seen count.", ex);
-			} finally
-			{
-				if (cursor != null)
-				{
-					cursor.close();
-				}
-				this.close();
 			}
+		} catch (Exception e)
+		{
+			logger.error("Error getting not seen advices.", e);
 
+		} finally
+		{
+			if (cursor != null)
+			{
+				cursor.close();
+			}
+			this.close();
 		}
-		return result;
+
+		return list;
 	}
 
 	public void fireOnAdviceAdded(Advice a)

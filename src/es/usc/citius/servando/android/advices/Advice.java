@@ -1,9 +1,7 @@
 package es.usc.citius.servando.android.advices;
 
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 /**
  * This class encapsulate the information of an advice
@@ -13,7 +11,7 @@ import java.util.List;
  */
 public class Advice implements Comparable<Advice> {
 
-	public static final String SERVANDO_SENDER_NAME = "system";
+	public static final String SERVANDO_SENDER_NAME = "Servando";
 
 	private int id;
 
@@ -25,34 +23,31 @@ public class Advice implements Comparable<Advice> {
 
 	private boolean seen;
 
+	private boolean report;
+
 	public static final String DATE_STRING_FORMAT = "dd-MM-yyyy HH:mm:ss";
 
-	/**
-	 * This attributte is only used to group advices by sender, but in the SQLite database this component doesnt exist
-	 */
-	private List<Advice> subAdvices;
-
-	public Advice(String sender, String msg, Date date, boolean seen)
+	public Advice(String sender, String msg, Date date, boolean seen, boolean report)
 	{
 		this.sender = sender;
 		this.msg = msg;
 		this.date = date;
 		this.seen = seen;
-		subAdvices = new ArrayList<Advice>();
+		this.report = report;
 	}
 
-	public Advice(int id, String sender, String msg, Date date, boolean seen)
+	public Advice(int id, String sender, String msg, Date date, boolean seen, boolean report)
 	{
 		this.id = id;
 		this.sender = sender;
 		this.msg = msg;
 		this.date = date;
 		this.seen = seen;
-		subAdvices = new ArrayList<Advice>();
+		this.report = report;
 	}
 
 	/**
-	 * By default this constructor set the atributte seen to 'false'
+	 * By default this constructor set the atributte seen and report to false
 	 * 
 	 * @param sender
 	 * @param msg
@@ -63,7 +58,7 @@ public class Advice implements Comparable<Advice> {
 		this.msg = msg;
 		this.date = date;
 		this.seen = false;
-		subAdvices = new ArrayList<Advice>();
+		this.report = false;
 	}
 
 	public int getId()
@@ -98,20 +93,7 @@ public class Advice implements Comparable<Advice> {
 
 	public boolean isSeen()
 	{
-		if (subAdvices.size() > 0)
-		{
-			for (Advice adv : subAdvices)
-			{
-				if (!adv.isSeen())
-				{
-					return false;
-				}
-			}
-			return true;
-		} else
-		{
-			return seen;
-		}
+		return seen;
 	}
 
 	/**
@@ -121,16 +103,9 @@ public class Advice implements Comparable<Advice> {
 	 */
 	public void setSeen(boolean seen)
 	{
-		if (subAdvices.size() > 0)
-		{
-			for (Advice adv : subAdvices)
-			{
-				adv.setSeen(seen);
-			}
-		} else
-		{
-			this.seen = seen;
-		}
+
+		this.seen = seen;
+
 	}
 
 	public Date getDate()
@@ -148,7 +123,8 @@ public class Advice implements Comparable<Advice> {
 	{
 		String toReturn;
 		SimpleDateFormat df = new SimpleDateFormat(DATE_STRING_FORMAT);
-		toReturn = "[" + this.id + "] [" + this.sender + "] [" + this.msg + "] [" + df.format(this.date) + "] [" + this.seen + "]";
+		toReturn = "[" + this.id + "] [" + this.sender + "] [" + this.msg + "] [" + df.format(this.date) + "] [" + this.seen + "] [" + this.report
+				+ "]";
 		return toReturn;
 	}
 
@@ -170,29 +146,14 @@ public class Advice implements Comparable<Advice> {
 		}
 	}
 
-	public void addSubAdvice(Advice advice)
-	{
-		this.subAdvices.add(advice);
-	}
-
-	public List<Advice> getSubAdvices()
-	{
-		return this.subAdvices;
-	}
-
-	/**
-	 * This method return true if the advices is composed by subadvices, false if not.
-	 * 
-	 * @return
-	 */
 	public boolean isReport()
 	{
-		if (this.subAdvices.size() > 0)
-		{
-			return true;
-		}
-		return false;
+		return report;
+	}
 
+	public void setReport(boolean report)
+	{
+		this.report = report;
 	}
 
 }

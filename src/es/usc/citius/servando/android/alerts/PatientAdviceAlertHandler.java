@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import org.joda.time.DateMidnight;
 import org.joda.time.DateTime;
 
 import android.content.res.Resources;
@@ -17,7 +16,6 @@ import es.usc.citius.servando.android.logging.ILog;
 import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
 
 public class PatientAdviceAlertHandler implements AlertHandler {
-
 	ILog log = ServandoLoggerFactory.getLogger(PatientAdviceAlertHandler.class);
 
 	@Override
@@ -25,7 +23,7 @@ public class PatientAdviceAlertHandler implements AlertHandler {
 	{
 		if (mustAdvicePatient(m.getType()))
 		{
-			log.debug("Adding advices " + m.toString() + " ...");
+			// log.debug("Adding advices " + m.toString() + " ...");
 			List<Advice> advices = generateFromAlert(m);
 			for (Advice a : advices)
 			{
@@ -50,8 +48,6 @@ public class PatientAdviceAlertHandler implements AlertHandler {
 	{
 
 		Date now = DateTime.now().toGregorianCalendar().getTime();
-		Date tomorrow = new DateMidnight().plusDays(1).toGregorianCalendar().getTime();
-
 		List<Advice> advices = new ArrayList<Advice>();
 
 		switch (m.getType()) {
@@ -61,17 +57,21 @@ public class PatientAdviceAlertHandler implements AlertHandler {
 			Resources r = ServandoPlatformFacade.getInstance().getResources();
 			String adviceToNow = String.format(r.getString(R.string.alert_action_expired), actionName);
 			String adviceToTomorrow = r.getString(R.string.alert_protocol_non_compilance);
-			advices.add(new Advice("Servando", adviceToNow, now));
-			advices.add(new Advice(Advice.SERVANDO_SENDER_NAME, adviceToTomorrow, tomorrow));
+			advices.add(new Advice(Advice.SERVANDO_SENDER_NAME, adviceToNow, now));
+			// Generamos un mensaje 'tipo report'
+			advices.add(new Advice(Advice.SERVANDO_SENDER_NAME, adviceToTomorrow, now, false, true));
 			break;
 		case SALT_INTAKE:
-			advices.add(new Advice(Advice.SERVANDO_SENDER_NAME, m.getPatientMsg(), tomorrow));
+			// Generamos un mensaje 'tipo report'
+			advices.add(new Advice(Advice.SERVANDO_SENDER_NAME, m.getPatientMsg(), now, false, true));
 			break;
 		case ALCOHOL_INTAKE:
-			advices.add(new Advice(Advice.SERVANDO_SENDER_NAME, m.getPatientMsg(), tomorrow));
+			// Generamos un mensaje 'tipo report'
+			advices.add(new Advice(Advice.SERVANDO_SENDER_NAME, m.getPatientMsg(), now, false, true));
 			break;
 		case SMOKE_INTAKE:
-			advices.add(new Advice(Advice.SERVANDO_SENDER_NAME, m.getPatientMsg(), tomorrow));
+			// Generamos un mensaje 'tipo report'
+			advices.add(new Advice(Advice.SERVANDO_SENDER_NAME, m.getPatientMsg(), now, false, true));
 			break;
 		default:
 			break;

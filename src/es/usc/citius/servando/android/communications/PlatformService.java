@@ -143,14 +143,12 @@ public class PlatformService implements IPlatformService, CommunicableService {
 			{
 				state = MedicalActionState.Uncompleted;
 
-				for (Advice a : DailyReport.getInstance().getNotSeen())
+				Advice a = DailyReport.getInstance().generateDailyReport();
+				if (a != null)
 				{
-					if (Advice.SERVANDO_SENDER_NAME.equals(a.getSender()))
-					{
-						ServandoAdviceMgr.getInstance().setHomeAdvice(a);
-						break;
-					}
+					ServandoAdviceMgr.getInstance().setHomeAdvice(a);
 				}
+
 			}
 
 			if (listener != null)
