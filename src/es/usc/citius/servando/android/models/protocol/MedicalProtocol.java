@@ -16,7 +16,6 @@ import org.simpleframework.xml.Order;
 import org.simpleframework.xml.Root;
 import org.simpleframework.xml.convert.Convert;
 
-import es.usc.citius.servando.android.models.patients.Patient;
 import es.usc.citius.servando.android.xml.converters.GregorianCalendarConverter;
 
 /**
@@ -28,7 +27,7 @@ import es.usc.citius.servando.android.xml.converters.GregorianCalendarConverter;
  */
 @Root(name = "MedicalProtocol")
 @Default(DefaultType.FIELD)
-@Order(elements = { "startDate", "name", "description", "patient" })
+@Order(elements = { "startDate", "name", "description" })
 public class MedicalProtocol {
 
 	@Element(name = "version", required = false)
@@ -58,9 +57,6 @@ public class MedicalProtocol {
 	@Element(name = "startDate")
 	@Convert(value = GregorianCalendarConverter.class)
 	private GregorianCalendar startDate;
-
-	@Element(name = "patient")
-	private Patient patient;
 
 	public MedicalProtocol()
 	{
@@ -151,16 +147,6 @@ public class MedicalProtocol {
 	public void setStartDate(GregorianCalendar startDate)
 	{
 		this.startDate = startDate;
-	}
-
-	public Patient getPatient()
-	{
-		return patient;
-	}
-
-	public void setPatient(Patient patient)
-	{
-		this.patient = patient;
 	}
 
 	public int getVersion()
