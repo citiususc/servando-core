@@ -130,5 +130,4 @@ public class ServandoCommunicationsModule {
 	{
 		return objectTransporters.get(registeredServices.get(id));
 	}
-
 }

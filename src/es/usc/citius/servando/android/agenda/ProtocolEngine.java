@@ -327,8 +327,14 @@ public class ProtocolEngine implements MedicalActionExecutionListener, Execution
 
 	private void cancelTask(TimerTask task)
 	{
-		task.cancel();
-		scheduledTasks.remove(task.hashCode());
+		if (task != null)
+		{
+			if (scheduledTasks.get(task.hashCode()) != null)
+			{
+				scheduledTasks.remove(task.hashCode());
+			}
+			task.cancel();
+		}
 		// scheduleNextWakeUp();
 	}
 

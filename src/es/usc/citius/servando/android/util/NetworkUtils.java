@@ -5,6 +5,9 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.Enumeration;
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+
 public class NetworkUtils {
 
 	public static String getLocalIpAddress()
@@ -28,6 +31,12 @@ public class NetworkUtils {
 			ex.printStackTrace();
 		}
 		return null;
+	}
+
+	public boolean isOnline(Context ctx)
+	{
+		ConnectivityManager cm = (ConnectivityManager) ctx.getSystemService(Context.CONNECTIVITY_SERVICE);
+		return cm.getActiveNetworkInfo() != null && cm.getActiveNetworkInfo().isConnectedOrConnecting();
 	}
 
 }

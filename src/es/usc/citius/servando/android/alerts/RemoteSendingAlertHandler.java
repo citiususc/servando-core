@@ -17,7 +17,6 @@ public class RemoteSendingAlertHandler implements AlertHandler {
 			log.debug("Sending alert " + m.toString() + " ...");
 			new Thread(new Runnable()
 			{
-
 				@Override
 				public void run()
 				{
@@ -33,6 +32,7 @@ public class RemoteSendingAlertHandler implements AlertHandler {
 		boolean mustSend = false;
 
 		mustSend |= t == AlertType.PROTOCOL_NON_COMPILANCE;
+		mustSend |= t == AlertType.THERAPY_NON_COMPILANCE;
 		mustSend |= t == AlertType.BLOOD_PRESSURE_VALUE;
 		mustSend |= t == AlertType.WEIGHT_VALUE;
 		mustSend |= t == AlertType.SYMPTOM;

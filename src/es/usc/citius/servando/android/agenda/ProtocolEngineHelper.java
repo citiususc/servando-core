@@ -45,7 +45,7 @@ public class ProtocolEngineHelper {
 
 	static Long MAX_DURATION_IN_SECONDS = (long) (5 * 365 * 24 * 3600); // 5 year
 
-	private static boolean PROTOCOL_UPDATES_ENABLED = true;
+	private static boolean PROTOCOL_UPDATES_ENABLED = false;
 
 	private SimpleXMLSerializator serializator;
 

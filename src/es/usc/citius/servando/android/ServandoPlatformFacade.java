@@ -2,6 +2,7 @@ package es.usc.citius.servando.android;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -661,6 +662,32 @@ public class ServandoPlatformFacade {
 	{
 		ServandoBackgroundService.$.getInstance();
 		return started;
+	}
+
+	public String version(Context ctx)
+	{
+		int resId = getResources().getIdentifier("version_code", "string", ServandoPlatformFacade.APPLICATION_PACKAGE);
+		return ctx.getString(resId);
+	}
+
+	public String readVersionNotes()
+	{
+		String versionNotes = "";
+		try
+		{
+			int resId = getResources().getIdentifier("version_notes", "raw", ServandoPlatformFacade.APPLICATION_PACKAGE);
+			InputStream in_s = getResources().openRawResource(resId);
+			byte[] b = new byte[in_s.available()];
+			in_s.read(b);
+			versionNotes = new String(b);
+
+		} catch (Exception e)
+		{
+			log.error("Could not read version notes from raw file");
+			versionNotes = "";
+		}
+
+		return versionNotes;
 	}
 
 }
