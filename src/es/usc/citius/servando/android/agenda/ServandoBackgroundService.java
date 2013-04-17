@@ -69,37 +69,39 @@ public class ServandoBackgroundService extends Service {
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId)
 	{
-		Log.v("AgendaService", "AgendaService -- onStartCommand()");
-		// if (!started)
-		// {
-		Log.v("AgendaService", "AgendaService was not started, starting...");
-		// acquireWakeLock();
-		try
+		Log.v("AgendaService", "ServandoBackgroundService -- onStartCommand()");
+
+		if (facade == null)
 		{
-			$.setInstance(this);
-			ServandoPlatformFacade.getInstance().start(this.getApplicationContext(), true);
-			facade = ServandoPlatformFacade.getInstance();
-			loadServices();
-			agenda = ProtocolEngine.getInstance();
-			agenda.start();
+			log.debug("AgendaService, AgendaService was not started, starting...");
 
-			IntentFilter intentFilter = new IntentFilter();
-			intentFilter.addAction(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
-			wifiReceiver = new WifiConnectionReceiver();
-			registerReceiver(wifiReceiver, intentFilter);
+			try
+			{
+				$.setInstance(this);
 
-			checkForUpdates();
+				ServandoPlatformFacade.getInstance().start(this.getApplicationContext(), true);
+				facade = ServandoPlatformFacade.getInstance();
+				loadServices();
+				agenda = ProtocolEngine.getInstance();
+				agenda.start();
 
-		} catch (Exception e)
+				IntentFilter intentFilter = new IntentFilter();
+				intentFilter.addAction(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
+				wifiReceiver = new WifiConnectionReceiver();
+				registerReceiver(wifiReceiver, intentFilter);
+
+				checkForUpdates();
+
+			} catch (Exception e)
+			{
+				log.error("Error OnStartCommand", e);
+			}
+
+		} else
 		{
-			Log.e("AgendaService", "Error OnStartCommand", e);
+			log.debug("AgendaService", "AgendaService was started. Ignoring...");
 		}
-		// } else
-		// {
-		// Log.v("AgendaService", "AgendaService was started. Ignoring...");
-		// }
-		// We want this service to continue running until it is explicitly
-		// stopped, so return sticky.
+		// We want this service to continue running until it is explicitly stopped, so return sticky.
 		return START_STICKY;
 	}
 
@@ -110,9 +112,9 @@ public class ServandoBackgroundService extends Service {
 		{
 			unregisterReceiver(wifiReceiver);
 		}
+		facade = null;
 		Log.v("AgendaService", "AgendaService Destroyed");
 	}
-
 
 	public void acquireWakeLock()
 	{

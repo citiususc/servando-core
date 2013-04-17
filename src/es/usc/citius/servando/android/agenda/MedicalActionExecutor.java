@@ -154,7 +154,7 @@ public class MedicalActionExecutor {
 
 	public static void abortOrFinish(MedicalActionExecution e, Context ctx)
 	{
-		ServandoPlatformFacade.getInstance().requireUserAtention(ctx);
+		// ServandoPlatformFacade.getInstance().requireUserAtention(ctx);
 		// if (ServandoPlatformFacade.getInstance().getProtocolEngine().getAdvisedActions().getExecutions().size() == 0)
 		// {
 		// ServandoService.updateServandoNotification(ctx, false, false, "");
