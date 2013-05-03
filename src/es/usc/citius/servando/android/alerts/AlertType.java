@@ -11,5 +11,6 @@ public enum AlertType
 	WEIGHT_VALUE,
 	LIQUID_INTAKE,
 	SYMPTOM,
+	ADVICE,
 
 }
