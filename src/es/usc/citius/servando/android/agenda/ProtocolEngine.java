@@ -167,6 +167,7 @@ public class ProtocolEngine implements MedicalActionExecutionListener, Execution
 		DateTime now = DateTime.now();
 		// Obtenemos las instancias de actuaciones médicas para el día de hoy
 		List<MedicalActionExecution> dayActions = engineHelper.getDayActions(now.toGregorianCalendar());
+		protocol = engineHelper.getProtocol();
 
 		log.info("DayActions: " + dayActions.size());
 
@@ -179,28 +180,28 @@ public class ProtocolEngine implements MedicalActionExecutionListener, Execution
 			// En primer lugar comprobamos que esté dentro de la ventana temporal.
 			boolean canEnter = startDate.plusSeconds((int) exec.getTimeWindow()).isAfter(now);
 
-			log.debug("After is in window " + (canEnter));
+			// log.debug("After is in window " + (canEnter));
 
 			if (actionHasTimers(exec))
 			{
-				log.debug("Action " + exec.getAction().getId() + " has timers");
+				// log.debug("Action " + exec.getAction().getId() + " has timers");
 				canEnter = false;
 			} else
 			{
-				log.debug("Action " + exec.getAction().getId() + " has no timers");
+				// log.debug("Action " + exec.getAction().getId() + " has no timers");
 			}
 
-			log.debug("After has timers " + (canEnter));
+			// log.debug("After has timers " + (canEnter));
 
 			// Ahora, comprobamos que no se encuentre en ejecución, ni bloqueada, ni pendiente.
 			canEnter &= !(executingActions.contains(exec) || lockedActions.contains(exec) || pendingActions.contains(exec));
 
-			log.debug("After executiong|locked|pending " + (canEnter));
+			// log.debug("After executiong|locked|pending " + (canEnter));
 
 			// Comprobamos si la actuación aparece en el registro de actuaciones completas.
 			canEnter &= !finishedActions.getExecutions().contains(exec);
 
-			log.debug("After isFinished " + (canEnter));
+			// log.debug("After isFinished " + (canEnter));
 
 			if (canEnter)
 			{
@@ -208,7 +209,7 @@ public class ProtocolEngine implements MedicalActionExecutionListener, Execution
 				IPlatformService provider = exec.getAction().getProvider();
 				MedicalActionExecution execution;
 
-				log.info("Execution provider: " + (provider != null ? provider.getId() : "NULL"));
+				// log.info("Execution provider: " + (provider != null ? provider.getId() : "NULL"));
 
 				if (uncompletedActions.getExecutions().contains(exec))
 				{
@@ -733,6 +734,9 @@ public class ProtocolEngine implements MedicalActionExecutionListener, Execution
 		{
 			// ServandoPlatformFacade.getInstance().requireUserAtention(getService(),
 			// SoundHelper.sounds.get(SoundHelper.SOUND_ACTION_DONE));
+
+			// uncomment for sending
+			// ServandoPlatformFacade.getInstance().alert(a);
 		}
 	}
 
@@ -895,10 +899,10 @@ public class ProtocolEngine implements MedicalActionExecutionListener, Execution
 
 			log.debug("getAdvisedActions");
 
-			for (MedicalActionExecution a : all)
-			{
-				log.debug(a.toString());
-			}
+			// for (MedicalActionExecution a : all)
+			// {
+			// log.debug(a.toString());
+			// }
 
 			return new MedicalActionExecutionList(all);
 		}
@@ -943,10 +947,10 @@ public class ProtocolEngine implements MedicalActionExecutionListener, Execution
 
 			log.debug("getFilteredDayActions: " + all.size());
 
-			for (MedicalActionExecution a : all)
-			{
-				log.debug(a.toString());
-			}
+			// for (MedicalActionExecution a : all)
+			// {
+			// log.debug(a.toString());
+			// }
 
 			return all;
 		}
@@ -1268,7 +1272,7 @@ public class ProtocolEngine implements MedicalActionExecutionListener, Execution
 		getService().acquireWakeLock();
 	}
 
-	ServandoBackgroundService getService()
+	private ServandoBackgroundService getService()
 	{
 		return ServandoBackgroundService.$.getInstance();
 	}

@@ -9,6 +9,9 @@ import org.simpleframework.xml.DefaultType;
 import org.simpleframework.xml.Element;
 import org.simpleframework.xml.Order;
 
+import com.j256.ormlite.field.DatabaseField;
+import com.j256.ormlite.table.DatabaseTable;
+
 /**
  * Clase que representa a un paciente.
  * 
@@ -16,21 +19,27 @@ import org.simpleframework.xml.Order;
  */
 @Default(DefaultType.FIELD)
 @Order(elements = { "name", "surnames", "phonenumber", "address", "clinicalHistoryNumber" })
+@DatabaseTable(tableName = "patients")
 public class Patient implements Comparable<Patient> {
 
+	@Element(name = "clinicalHistoryNumber")
+	@DatabaseField(id = true)
+	private String clinicalHistoryNumber;
+
 	@Element(name = "name")
+	@DatabaseField
 	private String name;
 
 	@Element(name = "surnames")
+	@DatabaseField
 	private String surnames;
 
-	@Element(name = "clinicalHistoryNumber")
-	private String clinicalHistoryNumber;
-
 	@Element(name = "address")
+	@DatabaseField
 	private String address;
 
 	@Element(name = "phonenumber")
+	@DatabaseField
 	private String phoneNumber;
 
 	public Patient()

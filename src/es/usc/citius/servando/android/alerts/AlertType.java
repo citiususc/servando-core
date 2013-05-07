@@ -12,4 +12,5 @@ public enum AlertType
 	LIQUID_INTAKE,
 	SYMPTOM,
 
+	SYSTEM_EVENT
 }

@@ -10,13 +10,12 @@ import java.net.URLConnection;
 import java.util.Scanner;
 
 import android.app.Service;
+import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.PowerManager;
@@ -25,15 +24,10 @@ import android.util.Log;
 import es.usc.citius.servando.android.ServandoPlatformFacade;
 import es.usc.citius.servando.android.logging.ILog;
 import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
-import es.usc.citius.servando.android.models.protocol.MedicalAction;
-import es.usc.citius.servando.android.models.protocol.MedicalActionMgr;
-import es.usc.citius.servando.android.models.services.IPlatformService;
 import es.usc.citius.servando.android.settings.ServandoStartConfig;
-import es.usc.citius.servando.android.settings.StorageModule;
+import es.usc.citius.servando.android.util.BluetoothUtils;
 
 public class ServandoBackgroundService extends Service {
-
-	private String version_notes_file = "version_notes";
 
 	private ILog log = ServandoLoggerFactory.getLogger(ServandoBackgroundService.class);
 
@@ -69,7 +63,16 @@ public class ServandoBackgroundService extends Service {
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId)
 	{
-		Log.v("AgendaService", "ServandoBackgroundService -- onStartCommand()");
+		if (!ServandoPlatformFacade.isStarted())
+		{
+			// call this to intitialize logs!
+			ServandoPlatformFacade.getInstance();
+		}
+
+		log.debug("ServandoBackgroundService -- onStartCommand()");
+		log.debug("ServandoFacade started? " + ServandoPlatformFacade.isStarted());
+		log.debug("ServandoFacade reference is null? " + (facade == null));
+		log.debug("Updating $ instance...");
 
 		if (facade == null)
 		{
@@ -79,18 +82,37 @@ public class ServandoBackgroundService extends Service {
 			{
 				$.setInstance(this);
 
-				ServandoPlatformFacade.getInstance().start(this.getApplicationContext(), true);
-				facade = ServandoPlatformFacade.getInstance();
-				loadServices();
-				agenda = ProtocolEngine.getInstance();
-				agenda.start();
+				new Thread(new Runnable()
+				{
 
-				IntentFilter intentFilter = new IntentFilter();
-				intentFilter.addAction(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
-				wifiReceiver = new WifiConnectionReceiver();
-				registerReceiver(wifiReceiver, intentFilter);
+					@Override
+					public void run()
+					{
+						if (BluetoothUtils.getInstance().getAdapter() == null)
+						{
+							BluetoothUtils.getInstance().setAdapter(BluetoothAdapter.getDefaultAdapter());
+						}
 
-				checkForUpdates();
+						facade = ServandoPlatformFacade.getInstance();
+						try
+						{
+							facade.start(getApplicationContext(), true);
+						} catch (Exception e)
+						{
+							log.error("Error starting platform facade", e);
+						}
+						agenda = ProtocolEngine.getInstance();
+						agenda.start();
+
+					}
+				}).start();
+
+				// IntentFilter intentFilter = new IntentFilter();
+				// intentFilter.addAction(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
+				// wifiReceiver = new WifiConnectionReceiver();
+				// registerReceiver(wifiReceiver, intentFilter);
+
+				// checkForUpdates();
 
 			} catch (Exception e)
 			{
@@ -99,8 +121,10 @@ public class ServandoBackgroundService extends Service {
 
 		} else
 		{
-			log.debug("AgendaService", "AgendaService was started. Ignoring...");
+			log.debug("AgendaService. AgendaService was started. Ignoring...");
 		}
+
+		$.setInstance(this);
 		// We want this service to continue running until it is explicitly stopped, so return sticky.
 		return START_STICKY;
 	}
@@ -113,7 +137,7 @@ public class ServandoBackgroundService extends Service {
 			unregisterReceiver(wifiReceiver);
 		}
 		facade = null;
-		Log.v("AgendaService", "AgendaService Destroyed");
+		log.debug("ServandoBackgroudService destroyed");
 	}
 
 	public void acquireWakeLock()
@@ -134,109 +158,38 @@ public class ServandoBackgroundService extends Service {
 		}
 	}
 
-	private void loadServices()
-	{
-		for (IPlatformService service : ServandoPlatformFacade.getInstance().getRegisteredServices().values())
-		{
-			for (MedicalAction a : service.getProvidedActions())
-			{
-				MedicalActionMgr.getInstance().addMedicalAction(a);
-			}
-		}
-	}
+	// private void loadServices()
+	// {
+	// for (IPlatformService service : ServandoPlatformFacade.getInstance().getRegisteredServices().values())
+	// {
+	// for (MedicalAction a : service.getProvidedActions())
+	// {
+	// MedicalActionMgr.getInstance().addMedicalAction(a);
+	// }
+	// }
+	// }
 
-	private class WifiConnectionReceiver extends BroadcastReceiver {
+	// private class WifiConnectionReceiver extends BroadcastReceiver {
+	//
+	// @Override
+	// public void onReceive(Context context, Intent intent)
+	// {
+	//
+	// final String action = intent.getAction();
+	// if (action.equals(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION))
+	// {
+	// if (intent.getBooleanExtra(WifiManager.EXTRA_SUPPLICANT_CONNECTED, false))
+	// {
+	// // check for updates on wifi
+	//
+	// } else
+	// {
+	// // wifi connection was lost
+	// }
+	// }
+	// }
+	// }
 
-		@Override
-		public void onReceive(Context context, Intent intent)
-		{
-
-			final String action = intent.getAction();
-			if (action.equals(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION))
-			{
-				if (intent.getBooleanExtra(WifiManager.EXTRA_SUPPLICANT_CONNECTED, false))
-				{
-					// check for updates on wifi
-
-				} else
-				{
-					// wifi connection was lost
-				}
-			}
-		}
-	}
-
-	@Deprecated
-	public void checkForUpdatesOld()
-	{
-
-		new Thread(new Runnable()
-		{
-
-			@Override
-			public void run()
-			{
-				acquireWakeLock();
-
-				Integer currVersion;
-				Integer lastVersion;
-
-				String versionFilePath = StorageModule.getInstance().getBasePath() + "/version";
-
-				URL url = null;
-				try
-				{
-					url = new URL(ServandoStartConfig.getInstance().get(ServandoStartConfig.CHECK_UPDATES_URL));
-
-					URLConnection connection = url.openConnection();
-					connection.setConnectTimeout(4000);
-					connection.connect();
-					// download the file
-					InputStream input = new BufferedInputStream(url.openStream());
-					OutputStream output = new FileOutputStream(versionFilePath);
-
-					byte data[] = new byte[1024];
-					int count;
-
-					while ((count = input.read(data)) != -1)
-					{
-						output.write(data, 0, count);
-					}
-
-					output.flush();
-					output.close();
-					input.close();
-
-					Scanner scanner = new Scanner(new File(versionFilePath));
-
-					if (scanner.hasNextInt())
-					{
-						lastVersion = scanner.nextInt();
-						currVersion = readVersion(getApplication());
-
-						log.debug("lastVersion: " + lastVersion + ", currentVersion: " + currVersion);
-
-						if (lastVersion > currVersion || currVersion == -1)
-						{
-							Intent intent = new Intent();
-							intent.setClassName("es.usc.citius.servando.android.app", "es.usc.citius.servando.android.app.UpdateActivity");
-							intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-							intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
-							getApplicationContext().getApplicationContext().startActivity(intent);
-						}
-					}
-
-				} catch (Exception e)
-				{
-					log.error("Error in checkforupdates action", e);
-				} finally
-				{
-					releaseWakeLock();
-				}
-			}
-		}).start();
-
-	}
 
 	public void checkForUpdates()
 	{
@@ -253,7 +206,7 @@ public class ServandoBackgroundService extends Service {
 				URL url = null;
 				try
 				{
-					tmpVersion = File.createTempFile("version", "properties");
+					tmpVersion = File.createTempFile("version", ".properties");
 					url = new URL(ServandoStartConfig.getInstance().get(ServandoStartConfig.CHECK_UPDATES_URL));
 
 					URLConnection connection = url.openConnection();
@@ -296,6 +249,7 @@ public class ServandoBackgroundService extends Service {
 					log.error("Error in checkforupdates action", e);
 				} finally
 				{
+					tmpVersion.delete();
 					releaseWakeLock();
 				}
 			}

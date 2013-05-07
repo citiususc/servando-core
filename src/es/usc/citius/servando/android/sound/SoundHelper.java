@@ -61,7 +61,7 @@ public class SoundHelper {
 			@Override
 			public void run()
 			{
-				play(ctx, sound);
+				playWithSoundPool(ctx, sound);
 			}
 
 		}).start();
@@ -74,7 +74,7 @@ public class SoundHelper {
 			@Override
 			public void run()
 			{
-				play(ctx, sound);
+				playWithSoundPool(ctx, sound);
 				vibrate(ctx);
 			}
 

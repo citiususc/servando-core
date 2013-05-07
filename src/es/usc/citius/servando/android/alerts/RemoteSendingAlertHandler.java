@@ -1,5 +1,6 @@
 package es.usc.citius.servando.android.alerts;
 
+import es.usc.citius.servando.android.ServandoPlatformFacade;
 import es.usc.citius.servando.android.alerts.AlertMgr.AlertHandler;
 import es.usc.citius.servando.android.communications.PlatformService;
 import es.usc.citius.servando.android.logging.ILog;
@@ -8,6 +9,7 @@ import es.usc.citius.servando.android.logging.ServandoLoggerFactory;
 public class RemoteSendingAlertHandler implements AlertHandler {
 
 	ILog log = ServandoLoggerFactory.getLogger(RemoteSendingAlertHandler.class);
+
 
 	@Override
 	public void onAlert(final AlertMsg m)
@@ -23,6 +25,9 @@ public class RemoteSendingAlertHandler implements AlertHandler {
 					PlatformService.getTransporter().send(m);
 				}
 			}).start();
+		} else
+		{
+			log.debug("Alerts of type " + m.getType() + " are not configured to be sent to server.");
 		}
 
 	}
@@ -37,6 +42,11 @@ public class RemoteSendingAlertHandler implements AlertHandler {
 		mustSend |= t == AlertType.WEIGHT_VALUE;
 		mustSend |= t == AlertType.SYMPTOM;
 		mustSend |= t == AlertType.SMOKE_INTAKE;
+
+		if (ServandoPlatformFacade.getInstance().getSettings().isSystemEventsSendingEnabled())
+		{
+			mustSend |= t == AlertType.SYSTEM_EVENT;
+		}
 
 		return mustSend;
 

@@ -63,6 +63,18 @@ public class ServandoSettings {
 	private boolean httpServerEnabled;
 
 	/**
+	 * Indicates whether to send system events
+	 */
+	@Element(name = "systemEventsSendingEnabled", required = false)
+	private boolean systemEventsSendingEnabled = false;
+
+	/**
+	 * Indicates whether dynamic sdcard setup is enabled
+	 */
+	@Element(name = "dynamicSDCardSetupEnabled", required = false)
+	private boolean dynamicSDCardSetupEnabled = false;
+
+	/**
 	 * Indicates whether to enables the httpServer on the device
 	 */
 	@Element(name = "communicationsModuleEnabled", required = false)
@@ -308,5 +320,24 @@ public class ServandoSettings {
 		}
 	}
 
+	public boolean isSystemEventsSendingEnabled()
+	{
+		return systemEventsSendingEnabled;
+	}
+
+	public void setSystemEventsSendingEnabled(boolean systemEventsSendingEnabled)
+	{
+		this.systemEventsSendingEnabled = systemEventsSendingEnabled;
+	}
+
+	public boolean isDynamicSDCardSetupEnabled()
+	{
+		return dynamicSDCardSetupEnabled;
+	}
+
+	public void setDynamicSDCardSetupEnabled(boolean dynamicSDCardSetupEnabled)
+	{
+		this.dynamicSDCardSetupEnabled = dynamicSDCardSetupEnabled;
+	}
 
 }

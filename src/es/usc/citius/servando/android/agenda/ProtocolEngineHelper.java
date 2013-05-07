@@ -45,7 +45,7 @@ public class ProtocolEngineHelper {
 
 	static Long MAX_DURATION_IN_SECONDS = (long) (5 * 365 * 24 * 3600); // 5 year
 
-	private static boolean PROTOCOL_UPDATES_ENABLED = false;
+	private static boolean PROTOCOL_UPDATES_ENABLED = true;
 
 	private SimpleXMLSerializator serializator;
 
@@ -159,11 +159,11 @@ public class ProtocolEngineHelper {
 			{
 				try
 				{
+					// wait until check finish
 					lock.wait();
 				} catch (InterruptedException e)
 				{
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					log.error("An error ocurred while checking protocol updates", e);
 				}
 			}
 		}
@@ -339,7 +339,7 @@ public class ProtocolEngineHelper {
 		// Mientras la acción genere nuevas actuaciones con fecha de inicio durante el intervalo
 		while (condition)
 		{
-			log.debug("Action: " + action.getAction().getId() + ", cond1: " + cond1 + ", cond2: " + cond2);
+			// log.debug("Action: " + action.getAction().getId() + ", cond1: " + cond1 + ", cond2: " + cond2);
 
 			// Si no es una de las excepciones, la añadimos a la lista.
 			if (!action.getExceptions().contains(iteration))
@@ -366,7 +366,7 @@ public class ProtocolEngineHelper {
 			{
 				if (incomplete.getId().equals(action.getId()))
 				{
-					log.debug("Provider of " + action.getId() + " found, provider: " + String.valueOf((action.getProvider() != null)));
+					log.debug("Provider of " + action.getId() + " found, provider: " + String.valueOf((action.getProvider().getId())));
 
 					return action;
 				}
@@ -533,13 +533,15 @@ public class ProtocolEngineHelper {
 
 	}
 
-	void checkForProtocolUpdates()
+	private void checkForProtocolUpdates()
 	{
 		new Thread(new Runnable()
 		{
 			@Override
 			public void run()
 			{
+				log.debug("Checking protocol updates...");
+
 				URL url = null;
 				File tmpProtocolFile = null;
 				try
@@ -548,7 +550,7 @@ public class ProtocolEngineHelper {
 														.get(ServandoStartConfig.PROTOCOL_UPDATE_URL)
 														.replaceAll("%PATIENT_ID%", ServandoPlatformFacade.getInstance().getSettings().getVpnClient());
 
-					tmpProtocolFile = File.createTempFile("protocol", "xml");
+					tmpProtocolFile = File.createTempFile("protocol", ".xml");
 					url = new URL(urlStr);
 
 					URLConnection connection = url.openConnection();
@@ -570,18 +572,24 @@ public class ProtocolEngineHelper {
 					output.close();
 					input.close();
 
-					log.debug("Protocol: " + getStringFromFile(tmpProtocolFile));
+					// log.debug("Protocol: " + getStringFromFile(tmpProtocolFile));
 
 					SimpleXMLSerializator s = new SimpleXMLSerializator();
 					MedicalProtocol tmpProtocol = (MedicalProtocol) s.deserialize(tmpProtocolFile, MedicalProtocol.class);
 
-					if (tmpProtocol.getVersion() > protocol.getVersion())
+					String currentVersion = protocol.getVersion() != null ? protocol.getVersion() : "0";
+					String lastVersion = tmpProtocol.getVersion() != null ? tmpProtocol.getVersion() : "0";
+
+					log.debug("Current version [" + currentVersion + "], lastVersion [" + lastVersion + "]");
+
+					// if ast version is higher
+					if (lastVersion.compareTo(currentVersion) > 0)
 					{
+						// save the new protocol and load it
 						protocol = tmpProtocol;
 						saveProtocol(tmpProtocol);
 						loadProtocol();
-
-
+						log.debug("Protocol updated to " + protocol.getVersion() + " version");
 					}
 
 				} catch (Exception e)
@@ -629,6 +637,16 @@ public class ProtocolEngineHelper {
 			}
 		}
 		return "";
+	}
+
+	public MedicalProtocol getProtocol()
+	{
+		return protocol;
+	}
+
+	public void setProtocol(MedicalProtocol protocol)
+	{
+		this.protocol = protocol;
 	}
 
 }

@@ -31,7 +31,7 @@ import es.usc.citius.servando.android.xml.converters.GregorianCalendarConverter;
 public class MedicalProtocol {
 
 	@Element(name = "version", required = false)
-	private int version = 0;
+	private String version = "0";
 
 	/**
 	 * Nombre del protocolo. Sirve como identificador del mismo.
@@ -149,12 +149,12 @@ public class MedicalProtocol {
 		this.startDate = startDate;
 	}
 
-	public int getVersion()
+	public String getVersion()
 	{
 		return version;
 	}
 
-	public void setVersion(int version)
+	public void setVersion(String version)
 	{
 		this.version = version;
 	}

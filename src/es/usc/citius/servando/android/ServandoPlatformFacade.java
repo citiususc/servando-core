@@ -20,6 +20,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.net.Uri;
+import android.os.Environment;
 import android.util.Log;
 import es.usc.citius.servando.R;
 import es.usc.citius.servando.android.advices.storage.SQLiteAdviceDAO;
@@ -28,6 +29,8 @@ import es.usc.citius.servando.android.agenda.ProtocolEngineListener;
 import es.usc.citius.servando.android.agenda.ServandoBackgroundService;
 import es.usc.citius.servando.android.alerts.AlertMgr;
 import es.usc.citius.servando.android.alerts.AlertMsg;
+import es.usc.citius.servando.android.alerts.AlertMsg.Builder;
+import es.usc.citius.servando.android.alerts.AlertType;
 import es.usc.citius.servando.android.alerts.PatientAdviceAlertHandler;
 import es.usc.citius.servando.android.alerts.RemoteSendingAlertHandler;
 import es.usc.citius.servando.android.communications.CommunicableService;
@@ -142,6 +145,8 @@ public class ServandoPlatformFacade {
 		// get a logger for this class
 		log = ServandoLoggerFactory.getLogger(ServandoPlatformFacade.class);
 
+		log.debug("Logging engine initialized");
+
 		try
 		{	// load the platform settings
 			settings = storageModule.getSettings();
@@ -161,7 +166,7 @@ public class ServandoPlatformFacade {
 
 		// medicalActionStore = new MedicalActionStore();
 
-		log.info("ServandoPlatform facade instantiated");
+		log.info("ServandoPlatform facade instantiated. Started: " + started);
 	}
 
 	/**
@@ -275,8 +280,12 @@ public class ServandoPlatformFacade {
 	 */
 	public synchronized void start(Context ctx, boolean force) throws Exception
 	{
+		log.debug("Start called [started: " + started + ", force: " + force + "]");
+
 		if (!started || force)
 		{
+			log.debug("Starting platform facade...");
+
 
 			patient = loadPatient();
 
@@ -300,18 +309,18 @@ public class ServandoPlatformFacade {
 				s.onPlatformStarted();
 			}
 
-			for (IPlatformService s : loadedServices)
-			{
-				for (MedicalAction a : s.getProvidedActions())
-				{
-					log.debug("Service " + s.getId() + ": " + a.getId());
-				}
-			}
+			// for (IPlatformService s : loadedServices)
+			// {
+			// for (MedicalAction a : s.getProvidedActions())
+			// {
+			// log.debug("Service " + s.getId() + ": " + a.getId());
+			// }
+			// }
 
 			// start HTTP server if needed
 			if (settings.isHttpServerEnabled())
 			{
-				log.debug("HTTPServer requested...");
+				log.debug("HTTPServer starting...");
 				startHttpServer(ctx);
 			}
 
@@ -329,15 +338,65 @@ public class ServandoPlatformFacade {
 				BluetoothUtils.getInstance().setAdapter(BluetoothAdapter.getDefaultAdapter());
 			}
 
-			if (!ProtocolEngine.getInstance().isStarted())
-			{
-				ctx.startService(new Intent(ctx, ServandoBackgroundService.class));
-			} else
-			{
-				raiseOnReady();
-			}
+			log.debug("Platform facade started!");
+
+			doInitialLogs();
+
+			sendStartEvent();
+			// if (!ProtocolEngine.getInstance().isStarted())
+			// {
+			// ctx.startService(new Intent(ctx, ServandoBackgroundService.class));
+			// } else
+			// {
+			raiseOnReady();
+			// }
+
 
 			started = true;
+		}
+	}
+
+	private void sendStartEvent()
+	{
+		log.debug("Sending start alert...");
+		Builder builder = new AlertMsg.Builder();
+		AlertMsg a = builder.setType(AlertType.SYSTEM_EVENT).setDisplayName("Inicio").setDescription("Servando se ha iniciado").create();
+		// uncomment for sending
+		ServandoPlatformFacade.getInstance().alert(a);
+
+	}
+
+	private void doInitialLogs()
+	{
+		logExternalStorageAvailability();
+		log.debug("Base path: " + StorageModule.getInstance().getBasePath());
+		log.debug("Settings path: " + StorageModule.getInstance().getSettingsPath());
+		log.debug("Client VPN ip: " + settings.getVpnClient());
+		log.debug("Server URL: " + settings.getServerUrl());
+		log.debug("Communications enabled: " + settings.isCommunicationsModuleEnabled());
+
+		log.debug("== Patient =============================");
+		logSerializableToServandoLog(getPatient());
+		log.debug("== END Patient =========================");
+	}
+
+	/**
+	 * Log external storage available availability
+	 */
+	public void logExternalStorageAvailability()
+	{
+		// get external media state
+		String state = Environment.getExternalStorageState();
+
+		if (Environment.MEDIA_MOUNTED.equals(state))
+		{
+			log.debug("External storage is available and writeable");
+		} else if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(state))
+		{
+			log.debug("External storage available but not writeable");
+		} else
+		{
+			log.debug("External storage unavailable");
 		}
 	}
 
@@ -390,6 +449,7 @@ public class ServandoPlatformFacade {
 		// logs initialization
 		String logsFilename = StorageModule.getInstance().getPlatformLogsPath() + "/" + "servando.log";
 		Log4JConfig.initialize(logsFilename, Level.ALL, false, true);
+
 	}
 
 	private void startHttpServer(Context ctx)
@@ -459,8 +519,11 @@ public class ServandoPlatformFacade {
 	 */
 	public Patient loadPatient() throws Exception
 	{
+
+		String patientFile = StorageModule.getInstance().getBasePath() + "/" + settings.getPatientFile();
+		log.debug("Loading patient from " + patientFile);
 		SimpleXMLSerializator sxmls = new SimpleXMLSerializator();
-		File file = new File(StorageModule.getInstance().getBasePath() + "/" + settings.getPatientFile());
+		File file = new File(patientFile);
 		return (Patient) sxmls.deserialize(file, Patient.class);
 
 	}
@@ -497,25 +560,20 @@ public class ServandoPlatformFacade {
 		}
 	}
 
-	// @Override
-	// public void onBind(final ProtocolEngine engine)
-	// {
-	// // load day actions
-	// Timer t = new Timer();
-	// t.schedule(new TimerTask()
-	// {
-	//
-	// @Override
-	// public void run()
-	// {
-	// engine.start();
-	//
-	// }
-	// }, 1000);
-	//
-	// // notify platform ready
-	// raiseOnReady();
-	// }
+	public void logSerializableToServandoLog(Object o)
+	{
+		SimpleXMLSerializator xmls = new SimpleXMLSerializator();
+		StringWriter writter = new StringWriter();
+		try
+		{
+			xmls.getSerializer().write(o, writter);
+			log.debug(writter.getBuffer().toString());
+		} catch (Exception e)
+		{
+			log.error("Error serializating object", e);
+		}
+	}
+
 
 	private void raiseOnReady()
 	{
@@ -660,7 +718,7 @@ public class ServandoPlatformFacade {
 
 	public static boolean isStarted()
 	{
-		ServandoBackgroundService.$.getInstance();
+		// ServandoBackgroundService.$.getInstance();
 		return started;
 	}
 

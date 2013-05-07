@@ -217,6 +217,23 @@ public class StorageModule {
 			// We can only read the media
 			externalStorageWriteable = false;
 			Log.i(DEBUG_TAG, "external storage available but not writeable");
+		} else if (Environment.MEDIA_CHECKING.equals(state))
+		{
+			externalStorageWriteable = false;
+			Log.i(DEBUG_TAG, "external storage unavailable");
+
+			synchronized (this)
+			{
+				try
+				{
+					Thread.currentThread().sleep(1000);
+					externalStorageWriteable = checkExternalStorageAvailability();
+				} catch (InterruptedException e)
+				{
+					externalStorageWriteable = false;
+				}
+			}
+
 		} else
 		{
 			externalStorageWriteable = false;
