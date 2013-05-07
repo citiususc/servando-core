@@ -26,7 +26,7 @@ public class LocalUserAlarmProperties {
 		maxConsecutiveDaysHavingSalt = PROPERTY_INVALID_VALUE;
 		maxConsecutiveDaysDrinkingAlcohol = PROPERTY_INVALID_VALUE;
 		maxConsecutiveDaysWithoutPracticeExercise = PROPERTY_INVALID_VALUE;
-		maxWaterGlassesPerDay = PROPERTY_INVALID_VALUE;
+		maxWaterLitersPerDay = PROPERTY_INVALID_VALUE;
 		// Propiedades de peso
 		weightVariationInterval = PROPERTY_INVALID_VALUE;
 		weightVariation = PROPERTY_INVALID_VALUE;
@@ -69,8 +69,8 @@ public class LocalUserAlarmProperties {
 	@Element(name = "maxConsecutiveDaysWithoutPracticeExercise", required = false)
 	private int maxConsecutiveDaysWithoutPracticeExercise;
 
-	@Element(name = "maxWaterGlassesPerDay", required = false)
-	private int maxWaterGlassesPerDay;
+	@Element(name = "maxWaterLitersPerDay", required = false)
+	private float maxWaterLitersPerDay;
 
 	/**
 	 * This variable represents days
@@ -144,14 +144,14 @@ public class LocalUserAlarmProperties {
 		this.maxConsecutiveDaysWithoutPracticeExercise = maxConsecutiveDaysWithoutPracticeExercise;
 	}
 
-	public int getMaxWaterGlassesPerDay()
+	public float getMaxWaterLitersPerDay()
 	{
-		return maxWaterGlassesPerDay;
+		return maxWaterLitersPerDay;
 	}
 
-	public void setMaxWaterGlassesPerDay(int maxWaterGlassesPerDay)
+	public void setMaxWaterLitersPerDay(float maxWaterLitersPerDay)
 	{
-		this.maxWaterGlassesPerDay = maxWaterGlassesPerDay;
+		this.maxWaterLitersPerDay = maxWaterLitersPerDay;
 	}
 
 	public int getWeightVariationInterval()
