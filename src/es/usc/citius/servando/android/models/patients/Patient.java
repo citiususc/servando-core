@@ -22,8 +22,12 @@ import com.j256.ormlite.table.DatabaseTable;
 @DatabaseTable(tableName = "patients")
 public class Patient implements Comparable<Patient> {
 
+	@DatabaseField(generatedId = true)
+	@Element(name = "id")
+	private Long id;
+
 	@Element(name = "clinicalHistoryNumber")
-	@DatabaseField(id = true)
+	@DatabaseField
 	private String clinicalHistoryNumber;
 
 	@Element(name = "name")

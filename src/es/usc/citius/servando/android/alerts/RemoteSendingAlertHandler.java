@@ -42,6 +42,7 @@ public class RemoteSendingAlertHandler implements AlertHandler {
 		mustSend |= t == AlertType.WEIGHT_VALUE;
 		mustSend |= t == AlertType.SYMPTOM;
 		mustSend |= t == AlertType.SMOKE_INTAKE;
+		mustSend |= t == AlertType.ADVICE;
 
 		if (ServandoPlatformFacade.getInstance().getSettings().isSystemEventsSendingEnabled())
 		{

@@ -16,7 +16,7 @@ import org.simpleframework.xml.Element;
 import org.simpleframework.xml.ElementList;
 import org.simpleframework.xml.Root;
 
-import android.util.Log;
+//import android.util.Log;
 
 /**
  * Esta clase representa la cabecera de un registro MIT, según el formato WFDB. Para más información:
@@ -429,7 +429,7 @@ public class MITHeader {
 						samplingFrequency = Float.parseFloat(s);
 					}
 
-					Log.d("MITHeader", "SamplingFrecuency: " + samplingFrequency);
+					// Log.d("MITHeader", "SamplingFrecuency: " + samplingFrequency);
 					// Si está presente el número de muestras por señal, lo
 					// obtenemos
 					if (fields.length > 3)
