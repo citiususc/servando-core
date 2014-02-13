@@ -597,6 +597,15 @@ public class ProtocolEngineHelper {
 					log.error("Error in checkforupdates action", e);
 				} finally
 				{
+					if (tmpProtocolFile != null)
+					{
+						try
+						{
+							tmpProtocolFile.delete();
+						} catch (Exception ex)
+						{
+						}
+					}
 					synchronized (lock)
 					{
 						lock.notify();

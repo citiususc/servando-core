@@ -8,6 +8,7 @@ import org.simpleframework.xml.Default;
 import org.simpleframework.xml.DefaultType;
 import org.simpleframework.xml.Element;
 import org.simpleframework.xml.Order;
+import org.simpleframework.xml.Transient;
 
 import com.j256.ormlite.field.DatabaseField;
 import com.j256.ormlite.table.DatabaseTable;
@@ -23,7 +24,7 @@ import com.j256.ormlite.table.DatabaseTable;
 public class Patient implements Comparable<Patient> {
 
 	@DatabaseField(generatedId = true)
-	@Element(name = "id")
+	@Transient
 	private Long id;
 
 	@Element(name = "clinicalHistoryNumber")
