@@ -32,6 +32,7 @@ android {
 }
 
 dependencies {
+    compile 'com.android.support:support-v4:19.0.1'
     compile 'com.android.support:appcompat-v7:+'
     compile 'org.simpleframework:simple-xml:2.7.1'
     compile 'joda-time:joda-time:2.3'
