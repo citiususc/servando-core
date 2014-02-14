@@ -1,11 +1,15 @@
 package es.usc.citius.servando.android.settings;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Properties;
-
+import android.content.Context;
 import android.os.Environment;
 import android.util.Log;
+
+import java.io.File;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.Properties;
+import java.util.PropertyResourceBundle;
+import java.util.ResourceBundle;
 
 /**
  * Provides access to the platform default configuration parameters, such as paths or settings files names obtained from
@@ -25,7 +29,7 @@ public class ServandoStartConfig {
 	 */
 	private static ServandoStartConfig cfg = null;
 
-	private static final String CONFIG_FILE = "servando.properties";
+	private static final String CONFIG_FILE = "/servando.properties";
 
 	// Set of properties keys
 	public static final String DEFAULT_SETTINGS = "platform.defaultsettings";
@@ -46,23 +50,31 @@ public class ServandoStartConfig {
 
 	private ServandoStartConfig()
 	{
-		configuration = new Properties();
-		try
-		{
-			configuration.load(ServandoStartConfig.class.getResourceAsStream(CONFIG_FILE));
-		} catch (IOException e)
-		{
-			Log.e(DEBUG_TAG, "Error reading platform config", e);
-			// configuration.put(SETTINGS, "settings.xml");
-			// configuration.put(DIRECTORY,"ServandoPlatformData");
-			// configuration.put(EXTERNAL_PATH,"/Android/data/es.usc.citius.servando/files");
-		}
+        configuration = new Properties();
 	}
+
+
+    public void load(Context ctx){
+        try
+        {
+            InputStream stream = ctx.getAssets().open("servando.properties");
+            //InputStream stream = this.getClass().getResourceAsStream(CONFIG_FILE);
+            configuration.load(stream);
+            Log.d(DEBUG_TAG, "Loading start config done!");
+        } catch (Exception e)
+        {
+            Log.e(DEBUG_TAG, "Error reading platform config", e);
+            configuration.put(SETTINGS, "settings.xml");
+            configuration.put(DIRECTORY,"ServandoPlatformData");
+            configuration.put(EXTERNAL_PATH,"/Android/data/es.usc.citius.servando/");
+        }
+    }
 
 	public static ServandoStartConfig getInstance()
 	{
 		if (cfg == null)
-			cfg = new ServandoStartConfig();
+            cfg = new ServandoStartConfig();
+
 		return cfg;
 	}
 
