@@ -43,6 +43,8 @@ public class ServandoStartConfig {
 	public static final String SDCARD_PATIENT_DATA_URL = "updates.patientsdfilesurl";
 	public static final String PROTOCOL_UPDATE_URL = "updates.protocolupdateurl";
 
+    public static final String ENABLE_DYNAMIC_SETUP = "platform.enabledynamicsetup";
+
 	/**
 	 * Properties
 	 */
@@ -98,8 +100,14 @@ public class ServandoStartConfig {
 		String settingsPath = Environment.getExternalStorageDirectory().getPath() + configuration.getProperty(EXTERNAL_PATH)
 				+ configuration.getProperty(DIRECTORY) + "/"
 				+ configuration.getProperty(SETTINGS);
-		
 		return new File(settingsPath).exists();
-
  	}
+
+    public boolean dynamicSetupEnabled(){
+            String enable = configuration.getProperty(ENABLE_DYNAMIC_SETUP);
+            return enable!=null && enable.equalsIgnoreCase("true");
+    }
+
+
+
 }
