@@ -18,7 +18,7 @@ Although a service has no an user interface itself, an icon and a name to use in
 Servando offers an easy way of managing files under the platform working directory. Services that implement the [`StorageAvailableService`](src/main/src/es/usc/citius/servando/android/models/services/StorageAvailableService.java) interface are able to get an [`ServiceStorageHelper`](src/main/src/es/usc/citius/servando/android/services/ServiceStorageHelper.java) that can be used to create and access files under its own folder on the external storage.
 
 #### Communicating with the server
-In the same way, services wishing to send information to the server over the given communications module, must implement the [`CommunicableService`](src/main/src/es/usc/citius/servando/android/communications/CommunicableService.java) interface. This allows the service to get an `ObjectTransporter` they can use to directly send Java objects to the corresponding service endpoint on the server side.
+In the same way, services wishing to send information to the server over the given communications module, must implement the [`CommunicableService`](src/main/src/es/usc/citius/servando/android/communications/CommunicableService.java) interface. This allows the service to get an [`ObjectTransporter`](src/main/src/es/usc/citius/servando/android/communications/ObjectTransporter.java) they can use to directly send Java objects to the corresponding service endpoint on the server side.
 The communications module is based on WS and the information is transmitted as XML, so classes to send must be properly annotated with [SimpleXML](http://simple.sourceforge.net/), the framework used to provide XML serialization.
 
 ### Providing medical actions
